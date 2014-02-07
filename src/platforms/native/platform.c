@@ -50,19 +50,13 @@ static void adc_init(void);
  * 000 - Original production build.
  * 001 - Mini production build.
  */
+/*
 int platform_hwversion(void)
 {
-	static int hwversion = -1;
-	if (hwversion == -1) {
-		gpio_set_mode(GPIOB, GPIO_MODE_INPUT,
-				GPIO_CNF_INPUT_PULL_UPDOWN,
-				GPIO7 | GPIO6 | GPIO5);
-		gpio_clear(GPIOB, GPIO7 | GPIO6 | GPIO5);
-		hwversion = gpio_get(GPIOB, GPIO7 | GPIO6 | GPIO5) >> 5;
-	}
+	static int hwversion = 0;
 	return hwversion;
 }
-
+*/
 int platform_init(void)
 {
 	rcc_clock_setup_in_hse_8mhz_out_72mhz();
@@ -73,50 +67,36 @@ int platform_init(void)
 	rcc_peripheral_enable_clock(&RCC_APB2ENR, RCC_APB2ENR_IOPBEN);
 	rcc_peripheral_enable_clock(&RCC_APB2ENR, RCC_APB2ENR_AFIOEN);
 	rcc_peripheral_enable_clock(&RCC_AHBENR, RCC_AHBENR_CRCEN);
+    
+    gpio_set_mode(LED_PORT, GPIO_MODE_OUTPUT_2_MHZ, GPIO_CNF_OUTPUT_PUSHPULL, LED_UART | LED_IDLE_RUN | LED_ERROR);
 
 	/* Setup GPIO ports */
-	gpio_clear(USB_PU_PORT, USB_PU_PIN);
-	gpio_set_mode(USB_PU_PORT, GPIO_MODE_INPUT, GPIO_CNF_INPUT_FLOAT,
-			USB_PU_PIN);
+	gpio_clear(USB_PU_PORT, USB_PU_PIN); // pull-up disabled
+	gpio_set_mode(USB_PU_PORT, GPIO_MODE_INPUT, GPIO_CNF_INPUT_FLOAT, USB_PU_PIN); // configure
 
-	gpio_set_mode(JTAG_PORT, GPIO_MODE_OUTPUT_50_MHZ,
-			GPIO_CNF_OUTPUT_PUSHPULL,
-			TMS_PIN | TCK_PIN | TDI_PIN);
-	/* This needs some fixing... */
+    // JTAG pins
+	gpio_set_mode(JTAG_PORT, GPIO_MODE_OUTPUT_50_MHZ, GPIO_CNF_OUTPUT_PUSHPULL, TMS_PIN | TCK_PIN | TDI_PIN);
+	
+    /* This needs some fixing... */
 	/* Toggle required to sort out line drivers... */
-	gpio_port_write(GPIOA, 0x8100);
-	gpio_port_write(GPIOB, 0x2000);
+	//gpio_port_write(GPIOA, 0x8100);
+	//gpio_port_write(GPIOB, 0x2000);
 
-	gpio_port_write(GPIOA, 0x8180);
-	gpio_port_write(GPIOB, 0x2002);
-
-	gpio_set_mode(LED_PORT, GPIO_MODE_OUTPUT_2_MHZ,
-			GPIO_CNF_OUTPUT_PUSHPULL,
-			LED_UART | LED_IDLE_RUN | LED_ERROR);
-
-	/* FIXME: This pin in intended to be input, but the TXS0108 fails
-	 * to release the device from reset if this floats. */
-	gpio_set_mode(GPIOA, GPIO_MODE_OUTPUT_2_MHZ,
-			GPIO_CNF_OUTPUT_PUSHPULL, GPIO7);
+	//gpio_port_write(GPIOA, 0x8180);
+	//gpio_port_write(GPIOB, 0x2002);
+    
+    
 	/* Enable SRST output. Original uses a NPN to pull down, so setting the
 	 * output HIGH asserts. Mini is directly connected so use open drain output
 	 * and set LOW to assert.
 	 */
 	platform_srst_set_val(false);
-	gpio_set_mode(SRST_PORT, GPIO_MODE_OUTPUT_50_MHZ,
-			(platform_hwversion() == 0
-				? GPIO_CNF_OUTPUT_PUSHPULL
-				: GPIO_CNF_OUTPUT_OPENDRAIN),
-			SRST_PIN);
+	gpio_set_mode(SRST_PORT, GPIO_MODE_OUTPUT_50_MHZ, GPIO_CNF_OUTPUT_OPENDRAIN, SRST_PIN);
 
-        /* Enable internal pull-up on PWR_BR so that we don't drive
-           TPWR locally or inadvertently supply power to the target. */
-        if (platform_hwversion () > 0) {
-          gpio_set (PWR_BR_PORT, PWR_BR_PIN);
-          gpio_set_mode(PWR_BR_PORT, GPIO_MODE_INPUT,
-                        GPIO_CNF_INPUT_PULL_UPDOWN,
-                        PWR_BR_PIN);
-        }
+    /* Enable internal pull-up on PWR_BR so that we don't drive
+     TPWR locally or inadvertently supply power to the target. */
+    gpio_set (PWR_BR_PORT, PWR_BR_PIN); 
+    gpio_set_mode(PWR_BR_PORT, GPIO_MODE_INPUT, GPIO_CNF_INPUT_PULL_UPDOWN, PWR_BR_PIN);
 
 	/* Setup heartbeat timer */
 	systick_set_clocksource(STK_CSR_CLKSOURCE_AHB_DIV8);
@@ -126,13 +106,13 @@ int platform_init(void)
 	systick_interrupt_enable();
 	systick_counter_enable();
 
-	if (platform_hwversion() > 0) {
-		adc_init();
-	} else {
-		gpio_clear(GPIOB, GPIO0);
-		gpio_set_mode(GPIOB, GPIO_MODE_INPUT,
-				GPIO_CNF_INPUT_PULL_UPDOWN, GPIO0);
-	}
+    // TGT_PWR sensing
+    gpio_clear(GPIOB, GPIO0);
+	gpio_set_mode(GPIOB, GPIO_MODE_INPUT, GPIO_CNF_INPUT_PULL_UPDOWN, GPIO0);
+	
+	/* Drive pull-up high if VBUS connected */
+    gpio_set(USB_PU_PORT, USB_PU_PIN);
+    gpio_set_mode(USB_PU_PORT, GPIO_MODE_OUTPUT_10_MHZ, GPIO_CNF_OUTPUT_PUSHPULL, USB_PU_PIN);
 
 	SCB_VTOR = 0x2000;	// Relocate interrupt vector table here
 
@@ -146,11 +126,7 @@ int platform_init(void)
 
 void platform_srst_set_val(bool assert)
 {
-	if (platform_hwversion() == 0) {
-		gpio_set_val(SRST_PORT, SRST_PIN, assert);
-	} else {
-		gpio_set_val(SRST_PORT, SRST_PIN, !assert);
-	}
+    gpio_set_val(SRST_PORT, SRST_PIN, assert);
 }
 
 void platform_delay(uint32_t delay)
@@ -246,49 +222,9 @@ static void morse_update(void)
 	code >>= 1; bits--;
 }
 
-static void adc_init(void)
-{
-	rcc_peripheral_enable_clock(&RCC_APB2ENR, RCC_APB2ENR_ADC1EN);
-
-	gpio_set_mode(GPIOB, GPIO_MODE_INPUT,
-			GPIO_CNF_INPUT_ANALOG, GPIO0);
-
-	adc_off(ADC1);
-	adc_disable_scan_mode(ADC1);
-	adc_set_single_conversion_mode(ADC1);
-	adc_disable_external_trigger_regular(ADC1);
-	adc_set_right_aligned(ADC1);
-	adc_set_sample_time_on_all_channels(ADC1, ADC_SMPR_SMP_28DOT5CYC);
-
-	adc_power_on(ADC1);
-
-	/* Wait for ADC starting up. */
-	for (int i = 0; i < 800000; i++)    /* Wait a bit. */
-		__asm__("nop");
-
-	adc_reset_calibration(ADC1);
-	adc_calibration(ADC1);
-}
-
 const char *platform_target_voltage(void)
 {
-	if (platform_hwversion() == 0)
-		return gpio_get(GPIOB, GPIO0) ? "OK" : "ABSENT!";
-
-	static char ret[] = "0.0V";
-	const uint8_t channel = 8;
-	adc_set_regular_sequence(ADC1, 1, (uint8_t*)&channel);
-
-	adc_start_conversion_direct(ADC1);
-
-	/* Wait for end of conversion. */
-	while (!adc_eoc(ADC1));
-
-	uint32_t val = adc_read_regular(ADC1) * 99; /* 0-4095 */
-	ret[0] = '0' + val / 81910;
-	ret[2] = '0' + (val / 8191) % 10;
-
-	return ret;
+    return gpio_get(GPIOB, GPIO0) ? "OK" : "ABSENT!";
 }
 
 void assert_boot_pin(void)
@@ -298,36 +234,7 @@ void assert_boot_pin(void)
 	gpio_clear(GPIOB, GPIO12);
 }
 
-void exti15_10_isr(void)
-{
-	if (gpio_get(USB_VBUS_PORT, USB_VBUS_PIN)) {
-		/* Drive pull-up high if VBUS connected */
-		gpio_set_mode(USB_PU_PORT, GPIO_MODE_OUTPUT_10_MHZ,
-				GPIO_CNF_OUTPUT_PUSHPULL, USB_PU_PIN);
-	} else {
-		/* Allow pull-up to float if VBUS disconnected */
-		gpio_set_mode(USB_PU_PORT, GPIO_MODE_INPUT,
-				GPIO_CNF_INPUT_FLOAT, USB_PU_PIN);
-	}
-
-	exti_reset_request(USB_VBUS_PIN);
-}
-
 void setup_vbus_irq(void)
 {
-	nvic_set_priority(USB_VBUS_IRQ, IRQ_PRI_USB_VBUS);
-	nvic_enable_irq(USB_VBUS_IRQ);
 
-	gpio_set(USB_VBUS_PORT, USB_VBUS_PIN);
-	gpio_set(USB_PU_PORT, USB_PU_PIN);
-
-	gpio_set_mode(USB_VBUS_PORT, GPIO_MODE_INPUT,
-			GPIO_CNF_INPUT_PULL_UPDOWN, USB_VBUS_PIN);
-
-	/* Configure EXTI for USB VBUS monitor */
-	exti_select_source(USB_VBUS_PIN, USB_VBUS_PORT);
-	exti_set_trigger(USB_VBUS_PIN, EXTI_TRIGGER_BOTH);
-	exti_enable_request(USB_VBUS_PIN);
-
-	exti15_10_isr();
 }

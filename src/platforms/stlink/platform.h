@@ -27,6 +27,11 @@
 #include <libopencm3/stm32/f1/gpio.h>
 #include <libopencm3/usb/usbd.h>
 
+#define STK_CTRL_CLKSOURCE      (1 << 2)
+#define STK_CTRL_CLKSOURCE_LSB      2
+#define STK_CTRL_CLKSOURCE_AHB_DIV8 0
+#define STK_CTRL_CLKSOURCE_AHB      1
+
 #include <setjmp.h>
 #include <alloca.h>
 
@@ -34,10 +39,10 @@
 
 #define INLINE_GPIO
 #define CDCACM_PACKET_SIZE 	64
-#define BOARD_IDENT             "Black Magic Probe (STLINK), (Firmware 1.5" VERSION_SUFFIX ", build " BUILDDATE ")"
-#define BOARD_IDENT_DFU		"Black Magic (Upgrade) for STLink/Discovery, (Firmware 1.5" VERSION_SUFFIX ", build " BUILDDATE ")"
-#define BOARD_IDENT_UPD		"Black Magic (DFU Upgrade) for STLink/Discovery, (Firmware 1.5" VERSION_SUFFIX ", build " BUILDDATE ")"
-#define DFU_IDENT               "Black Magic Firmware Upgrade (STLINK)"
+#define BOARD_IDENT             "Black Magic Probe, (Firmware 1.5" VERSION_SUFFIX ", build " BUILDDATE ")"
+#define BOARD_IDENT_DFU		"Black Magic (Upgrade), (Firmware 1.5" VERSION_SUFFIX ", build " BUILDDATE ")"
+#define BOARD_IDENT_UPD		"Black Magic (DFU Upgrade), (Firmware 1.5" VERSION_SUFFIX ", build " BUILDDATE ")"
+#define DFU_IDENT               "Black Magic Firmware Upgrade"
 #define DFU_IFACE_STRING	"@Internal Flash   /0x08000000/8*001Ka,56*001Kg"
 #define UPD_IFACE_STRING	"@Internal Flash   /0x08000000/8*001Kg"
 
@@ -47,12 +52,12 @@ extern usbd_device *usbdev;
 
 /* Important pin mappings for STM32 implementation:
  *
- * LED0 = 	PB2	(Yellow LED : Running)
- * LED1 = 	PB10	(Yellow LED : Idle)
- * LED2 = 	PB11	(Red LED    : Error)
+ * LED0 = 	PB3	(Yellow LED : Running)
+ * LED1 = 	PB4	(Yellow LED : Idle)
+ * LED2 = 	PB5	(Red LED    : Error)
  *
  * TPWR = 	RB0 (input) -- analogue on mini design ADC1, ch8
- * nTRST = 	PB1
+ * nTRST = 	PA1
  * SRST_OUT = 	PA2
  * TDI = 	PA3
  * TMS = 	PA4 (input for SWDP)
@@ -68,11 +73,12 @@ extern usbd_device *usbdev;
 
 /* Hardware definitions... */
 #define TDI_PORT	GPIOA
-#define TMS_PORT	GPIOB
+#define TMS_PORT	GPIOA
 #define TCK_PORT	GPIOA
 #define TDO_PORT	GPIOA
-#define TDI_PIN		GPIO7
-#define TMS_PIN		GPIO14
+
+#define TDI_PIN		GPIO3
+#define TMS_PIN		GPIO4
 #define TCK_PIN		GPIO5
 #define TDO_PIN		GPIO6
 
@@ -81,14 +87,14 @@ extern usbd_device *usbdev;
 #define SWDIO_PIN	TMS_PIN
 #define SWCLK_PIN	TCK_PIN
 
-#define SRST_PORT	GPIOB
-#define SRST_PIN_V1	GPIO1
-#define SRST_PIN_V2	GPIO0
+#define SRST_PORT	GPIOA
+#define SRST_PIN_V1	GPIO2
+#define SRST_PIN_V2	GPIO2
 
-#define LED_PORT	GPIOA
+#define LED_PORT	GPIOB
 /* Use PC14 for a "dummy" uart led. So we can observere at least with scope*/
-#define LED_PORT_UART	GPIOC
-#define LED_UART	GPIO14
+#define LED_PORT_UART	GPIOB
+#define LED_UART	GPIO3
 
 #define TMS_SET_MODE()                                          \
     gpio_set_mode(TMS_PORT, GPIO_MODE_OUTPUT_50_MHZ,            \
@@ -120,14 +126,14 @@ extern usbd_device *usbdev;
 #define IRQ_PRI_USB_VBUS	(14 << 4)
 #define IRQ_PRI_TIM3		(0 << 4)
 
-#define USBUSART USART2
-#define USBUSART_CR1 USART2_CR1
-#define USBUSART_IRQ NVIC_USART2_IRQ
-#define USBUSART_APB_ENR RCC_APB1ENR
-#define USBUSART_CLK_ENABLE  RCC_APB1ENR_USART2EN
+#define USBUSART USART1
+#define USBUSART_CR1 USART1_CR1
+#define USBUSART_IRQ NVIC_USART1_IRQ
+#define USBUSART_APB_ENR RCC_APB2ENR
+#define USBUSART_CLK_ENABLE  RCC_APB2ENR_USART1EN
 #define USBUSART_PORT GPIOA
-#define USBUSART_TX_PIN GPIO2
-#define USBUSART_ISR usart2_isr
+#define USBUSART_TX_PIN GPIO9
+#define USBUSART_ISR usart1_isr
 #define USBUSART_TIM TIM4
 #define USBUSART_TIM_CLK_EN() rcc_peripheral_enable_clock(&RCC_APB1ENR, RCC_APB1ENR_TIM4EN)
 #define USBUSART_TIM_IRQ NVIC_TIM4_IRQ

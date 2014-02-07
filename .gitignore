@@ -13,3 +13,4 @@ tags
 .gdbinit
 *.s#*
 *.b#*
+src/obj_arm

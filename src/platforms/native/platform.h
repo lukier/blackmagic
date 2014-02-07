@@ -84,7 +84,7 @@ extern usbd_device *usbdev;
 #define SWDIO_PIN	TMS_PIN
 #define SWCLK_PIN	TCK_PIN
 
-#define TRST_PORT	GPIOB
+#define TRST_PORT	GPIOA
 #define TRST_PIN	GPIO1
 #define PWR_BR_PORT	GPIOB
 #define PWR_BR_PIN	GPIO1
@@ -94,15 +94,15 @@ extern usbd_device *usbdev;
 #define USB_PU_PORT	GPIOA
 #define USB_PU_PIN	GPIO8
 
-#define USB_VBUS_PORT	GPIOB
-#define USB_VBUS_PIN	GPIO13
-#define USB_VBUS_IRQ	NVIC_EXTI15_10_IRQ
+//#define USB_VBUS_PORT	GPIOB
+//#define USB_VBUS_PIN	GPIO0
+//#define USB_VBUS_IRQ	NVIC_EXTI15_10_IRQ
 
 #define LED_PORT	GPIOB
 #define LED_PORT_UART	GPIOB
-#define LED_UART	GPIO2
-#define LED_IDLE_RUN	GPIO10
-#define LED_ERROR	GPIO11
+#define LED_UART	GPIO4
+#define LED_IDLE_RUN	GPIO5
+#define LED_ERROR	GPIO3
 
 #define TMS_SET_MODE()                                          \
     gpio_set_mode(TMS_PORT, GPIO_MODE_OUTPUT_50_MHZ,            \
@@ -140,6 +140,8 @@ extern usbd_device *usbdev;
 #define USBUSART_APB_ENR RCC_APB2ENR
 #define USBUSART_CLK_ENABLE  RCC_APB2ENR_USART1EN
 #define USBUSART_PORT GPIOA
+#define USBUSART_PORT_APB_ENR RCC_APB2ENR
+#define USBUSART_PORT_ENABLE RCC_APB2ENR_IOPAEN
 #define USBUSART_TX_PIN GPIO9
 #define USBUSART_ISR usart1_isr
 #define USBUSART_TIM TIM4

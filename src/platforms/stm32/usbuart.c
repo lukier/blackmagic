@@ -45,19 +45,13 @@ static void usbuart_run(void);
 
 void usbuart_init(void)
 {
-#if defined(BLACKMAGIC)
-	/* On mini hardware, UART and SWD share connector pins.
-	 * Don't enable UART if we're being debugged. */
-	if ((platform_hwversion() == 1) && (SCS_DEMCR & SCS_DEMCR_TRCENA))
-		return;
-#endif
-
+    rcc_peripheral_enable_clock(&USBUSART_PORT_APB_ENR, USBUSART_PORT_ENABLE);
 	rcc_peripheral_enable_clock(&USBUSART_APB_ENR, USBUSART_CLK_ENABLE);
 
 	UART_PIN_SETUP();
 
 	/* Setup UART parameters. */
-	usart_set_baudrate(USBUSART, 38400);
+    usart_set_baudrate(USBUSART, 115200);
 	usart_set_databits(USBUSART, 8);
 	usart_set_stopbits(USBUSART, USART_STOPBITS_1);
 	usart_set_mode(USBUSART, USART_MODE_TX_RX);
