@@ -76,6 +76,7 @@ static struct jtag_dev_descr_s {
 	{.idcode = 0x8940303F, .idmask = 0xFFFFFFFF, .descr = "ATMEL: ATMega16."},
 	{.idcode = 0x0792603F, .idmask = 0xFFFFFFFF, .descr = "ATMEL: AT91SAM9261."},
 	{.idcode = 0x20270013, .idmask = 0xFFFFFFFF, .descr = "Intel: i80386ex."},
+    {.idcode = 0x4F1F0F0F, .idmask = 0xFFFFFFFF, .descr = "NXP: LPC2378.", .handler = arm7tdmi_jtag_handler},
 	{.idcode = 0, .idmask = 0, .descr = "Unknown"},
 };
 
