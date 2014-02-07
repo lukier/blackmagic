@@ -22,9 +22,8 @@
 #include <libopencm3/stm32/rcc.h>
 #include <libopencm3/stm32/gpio.h>
 #include <libopencm3/cm3/scb.h>
-#include <libopencm3/stm32/usart.h>
+
 #include "usbdfu.h"
-#include "platform.h"
 
 uint32_t app_address = 0x08002000;
 
@@ -35,40 +34,41 @@ void dfu_detach(void)
 }
 
 int main(void)
-{       
-    /* Check the force bootloader pin*/
-    rcc_peripheral_enable_clock(&RCC_APB2ENR, RCC_APB2ENR_IOPBEN);
-    if(gpio_get(GPIOB, GPIO12))
-    {
-        dfu_jump_app_if_valid();
-    }
+{
+	/* Check the force bootloader pin*/
+	rcc_peripheral_enable_clock(&RCC_APB2ENR, RCC_APB2ENR_IOPBEN);
+	if(gpio_get(GPIOB, GPIO12))
+		dfu_jump_app_if_valid();
 
 	dfu_protect(DFU_MODE);
 
-    rcc_clock_setup_in_hse_8mhz_out_72mhz();
-    systick_set_clocksource(STK_CSR_CLKSOURCE_AHB_DIV8);
-    systick_set_reload(900000);
+	rcc_clock_setup_in_hse_8mhz_out_72mhz();
+	systick_set_clocksource(STK_CSR_CLKSOURCE_AHB_DIV8);
+	systick_set_reload(900000);
 
 	rcc_peripheral_enable_clock(&RCC_APB2ENR, RCC_APB2ENR_IOPAEN);
-    rcc_peripheral_enable_clock(&RCC_APB1ENR, RCC_APB1ENR_USBEN);
+        rcc_peripheral_enable_clock(&RCC_APB1ENR, RCC_APB1ENR_USBEN);
 	gpio_set_mode(GPIOA, GPIO_MODE_INPUT, 0, GPIO8);
 
 	systick_interrupt_enable();
 	systick_counter_enable();
 
-	gpio_set_mode(GPIOB, GPIO_MODE_OUTPUT_2_MHZ, GPIO_CNF_OUTPUT_PUSHPULL, GPIO5); // led config?
-	//gpio_set_mode(GPIOB, GPIO_MODE_INPUT, GPIO_CNF_INPUT_FLOAT, GPIO2 | GPIO10); // what is this?
+	gpio_set_mode(GPIOB, GPIO_MODE_OUTPUT_2_MHZ,
+			GPIO_CNF_OUTPUT_PUSHPULL, GPIO11);
+	gpio_set_mode(GPIOB, GPIO_MODE_INPUT,
+			GPIO_CNF_INPUT_FLOAT, GPIO2 | GPIO10);
 
 	dfu_init(&stm32f103_usb_driver, DFU_MODE);
 
-	gpio_set(GPIOA, GPIO8); // USB pullup
-	gpio_set_mode(GPIOA, GPIO_MODE_OUTPUT_2_MHZ, GPIO_CNF_OUTPUT_PUSHPULL, GPIO8);
+	gpio_set(GPIOA, GPIO8);
+	gpio_set_mode(GPIOA, GPIO_MODE_OUTPUT_2_MHZ,
+			GPIO_CNF_OUTPUT_PUSHPULL, GPIO8);
 
 	dfu_main();
 }
 
 void sys_tick_handler(void)
 {
-	gpio_toggle(GPIOB, GPIO5); /* LED2 on/off */
+	gpio_toggle(GPIOB, GPIO11); /* LED2 on/off */
 }
 

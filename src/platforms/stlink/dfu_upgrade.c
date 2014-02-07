@@ -23,11 +23,6 @@
 #include <libopencm3/stm32/gpio.h>
 #include <libopencm3/cm3/scb.h>
 
-#define STK_CTRL_CLKSOURCE      (1 << 2)
-#define STK_CTRL_CLKSOURCE_LSB      2
-#define STK_CTRL_CLKSOURCE_AHB_DIV8 0
-#define STK_CTRL_CLKSOURCE_AHB      1
-
 #include "usbdfu.h"
 uint32_t app_address = 0x08000000;
 
@@ -39,18 +34,19 @@ void dfu_detach(void)
 {
 	/* Disconnect USB cable by resetting USB Device
 	   and pulling USB_DP low*/
-    /* Disconnect USB cable by resetting USB Device and pulling USB_DP low*/
-    rcc_peripheral_reset(&RCC_APB1RSTR, RCC_APB1ENR_USBEN);
-    rcc_peripheral_clear_reset(&RCC_APB1RSTR, RCC_APB1ENR_USBEN);
-    rcc_peripheral_enable_clock(&RCC_APB1ENR, RCC_APB1ENR_USBEN);
-    rcc_peripheral_enable_clock(&RCC_APB2ENR, RCC_APB2ENR_IOPAEN);
-    gpio_set_mode(GPIOA, GPIO_MODE_OUTPUT_2_MHZ, GPIO_CNF_OUTPUT_PUSHPULL, GPIO8);
-    gpio_set(GPIOA, GPIO8); // pullup enabled
-    
-	/* Pull (T_NRST) low */
+	rcc_peripheral_reset(&RCC_APB1RSTR, RCC_APB1ENR_USBEN);
+	rcc_peripheral_clear_reset(&RCC_APB1RSTR, RCC_APB1ENR_USBEN);
+	rcc_peripheral_enable_clock(&RCC_APB1ENR, RCC_APB1ENR_USBEN);
 	rcc_peripheral_enable_clock(&RCC_APB2ENR, RCC_APB2ENR_IOPAEN);
-	gpio_set_mode(GPIOA, GPIO_MODE_OUTPUT_2_MHZ, GPIO_CNF_OUTPUT_OPENDRAIN, GPIO1);
-	gpio_clear(GPIOA, GPIO1);
+	gpio_clear(GPIOA, GPIO12);
+	gpio_set_mode(GPIOA, GPIO_MODE_OUTPUT_2_MHZ,
+		GPIO_CNF_OUTPUT_OPENDRAIN, GPIO12);
+	/* Pull PB0 (T_NRST) low
+	 */
+	rcc_peripheral_enable_clock(&RCC_APB2ENR, RCC_APB2ENR_IOPBEN);
+	gpio_set_mode(GPIOB, GPIO_MODE_OUTPUT_2_MHZ,
+		GPIO_CNF_OUTPUT_OPENDRAIN, GPIO0);
+	gpio_clear(GPIOB, GPIO0);
 	SCB_VTOR = 0;
 	scb_reset_core();
 }
@@ -63,10 +59,22 @@ void stlink_set_rev(void)
 	 *  11 for ST-Link V1, e.g. on VL Discovery, tag as rev 0
 	 *  10 for ST-Link V2, e.g. on F4 Discovery, tag as rev 1
 	 */
-    rev = 1;
+	rcc_peripheral_enable_clock(&RCC_APB2ENR, RCC_APB2ENR_IOPCEN);
+	gpio_set_mode(GPIOC, GPIO_MODE_INPUT,
+			GPIO_CNF_INPUT_PULL_UPDOWN, GPIO14 | GPIO13);
+	gpio_set(GPIOC, GPIO14 | GPIO13);
+	for (i = 0; i < 100; i++)
+		rev = (~(gpio_get(GPIOC, GPIO14 | GPIO13)) >> 13) & 3;
 
-    led_idle_run = GPIO4;
-	gpio_set_mode(GPIOA, GPIO_MODE_OUTPUT_2_MHZ, GPIO_CNF_OUTPUT_PUSHPULL, led_idle_run);
+	switch (rev) {
+	case 0:
+		led_idle_run = GPIO8;
+		break;
+	default:
+		led_idle_run = GPIO9;
+	}
+	gpio_set_mode(GPIOA, GPIO_MODE_OUTPUT_2_MHZ,
+			GPIO_CNF_OUTPUT_PUSHPULL, led_idle_run);
 }
 
 int main(void)
@@ -85,12 +93,13 @@ int main(void)
 	/* Just in case: Disconnect USB cable by resetting USB Device
          * and pulling USB_DP low
          * Device will reconnect automatically as Pull-Up is hard wired*/
-    rcc_peripheral_reset(&RCC_APB1RSTR, RCC_APB1ENR_USBEN);
-    rcc_peripheral_clear_reset(&RCC_APB1RSTR, RCC_APB1ENR_USBEN);
-    rcc_peripheral_enable_clock(&RCC_APB1ENR, RCC_APB1ENR_USBEN);
-    rcc_peripheral_enable_clock(&RCC_APB2ENR, RCC_APB2ENR_IOPAEN);
-    gpio_set_mode(GPIOA, GPIO_MODE_OUTPUT_2_MHZ, GPIO_CNF_OUTPUT_PUSHPULL, GPIO8);
-    gpio_clear(GPIOA, GPIO8); // pullup disabled
+	rcc_peripheral_reset(&RCC_APB1RSTR, RCC_APB1ENR_USBEN);
+	rcc_peripheral_clear_reset(&RCC_APB1RSTR, RCC_APB1ENR_USBEN);
+	rcc_peripheral_enable_clock(&RCC_APB1ENR, RCC_APB1ENR_USBEN);
+	rcc_peripheral_enable_clock(&RCC_APB2ENR, RCC_APB2ENR_IOPAEN);
+	gpio_clear(GPIOA, GPIO12);
+	gpio_set_mode(GPIOA, GPIO_MODE_OUTPUT_2_MHZ,
+		GPIO_CNF_OUTPUT_OPENDRAIN, GPIO12);
 
 	systick_interrupt_enable();
 	systick_counter_enable();
@@ -103,13 +112,15 @@ int main(void)
 void sys_tick_handler(void)
 {
 	if (rev == 0) {
-		gpio_toggle(GPIOB, led_idle_run);
+		gpio_toggle(GPIOA, led_idle_run);
 	} else {
 		if (led2_state & 1) {
-			gpio_set_mode(GPIOB, GPIO_MODE_OUTPUT_2_MHZ, GPIO_CNF_OUTPUT_PUSHPULL, led_idle_run);
-			gpio_set(GPIOB, led_idle_run);
+			gpio_set_mode(GPIOA, GPIO_MODE_OUTPUT_2_MHZ,
+				GPIO_CNF_OUTPUT_PUSHPULL, led_idle_run);
+			gpio_set(GPIOA, led_idle_run);
 		} else {
-			gpio_set_mode(GPIOB, GPIO_MODE_INPUT, GPIO_CNF_INPUT_ANALOG, led_idle_run);
+			gpio_set_mode(GPIOA, GPIO_MODE_INPUT,
+				GPIO_CNF_INPUT_ANALOG, led_idle_run);
 		}
 		led2_state++;
 	}

@@ -48,7 +48,24 @@ uint16_t led_idle_run;
  */
 int platform_hwversion(void)
 {
-	static int hwversion = 1;
+	static int hwversion = -1;
+        int i;
+	if (hwversion == -1) {
+		gpio_set_mode(GPIOC, GPIO_MODE_INPUT,
+				GPIO_CNF_INPUT_PULL_UPDOWN,
+				GPIO14 | GPIO13);
+		gpio_set(GPIOC, GPIO14 | GPIO13);
+                for (i = 0; i<10; i++)
+                    hwversion = ~(gpio_get(GPIOC, GPIO14 | GPIO13) >> 13) & 3;
+                switch (hwversion)
+                {
+                case 0:
+                    led_idle_run = GPIO8;
+                    break;
+                default:
+                    led_idle_run = GPIO9;
+                }
+	}
 	return hwversion;
 }
 
@@ -64,18 +81,31 @@ int platform_init(void)
 	rcc_peripheral_enable_clock(&RCC_APB2ENR, RCC_APB2ENR_AFIOEN);
 	rcc_peripheral_enable_clock(&RCC_AHBENR, RCC_AHBENR_CRCEN);
 
-    led_idle_run = GPIO4;
-    
+	/* On Rev 1 unconditionally activate MCO on PORTA8 with HSE
+         * platform_hwversion() also needed to initialize led_idle_run!
+         */
+        if (platform_hwversion() == 1)
+        {
+            RCC_CFGR &= ~(                 0xf<< 24);
+            RCC_CFGR |=  (RCC_CFGR_MCO_HSECLK << 24);
+            gpio_set_mode(GPIOA, GPIO_MODE_OUTPUT_50_MHZ,
+                          GPIO_CNF_OUTPUT_ALTFN_PUSHPULL, GPIO8);
+        }
 	/* Setup GPIO ports */
-	gpio_set_mode(TMS_PORT, GPIO_MODE_OUTPUT_50_MHZ, GPIO_CNF_OUTPUT_PUSHPULL, TMS_PIN);
-	gpio_set_mode(TCK_PORT, GPIO_MODE_OUTPUT_50_MHZ, GPIO_CNF_OUTPUT_PUSHPULL, TCK_PIN);
-	gpio_set_mode(TDI_PORT, GPIO_MODE_OUTPUT_50_MHZ, GPIO_CNF_OUTPUT_PUSHPULL, TDI_PIN);
-	uint16_t srst_pin = platform_hwversion() == 0 ? SRST_PIN_V1 : SRST_PIN_V2;
-	gpio_set(SRST_PORT, srst_pin); // no reset
-	gpio_set_mode(SRST_PORT, GPIO_MODE_OUTPUT_50_MHZ, GPIO_CNF_OUTPUT_OPENDRAIN, srst_pin);
-	gpio_set_mode(LED_PORT, GPIO_MODE_OUTPUT_2_MHZ, GPIO_CNF_OUTPUT_PUSHPULL, led_idle_run);
-    
-    gpio_set(GPIOA, GPIO8); // pullup enbled
+	gpio_set_mode(TMS_PORT, GPIO_MODE_OUTPUT_50_MHZ,
+			GPIO_CNF_OUTPUT_PUSHPULL, TMS_PIN);
+	gpio_set_mode(TCK_PORT, GPIO_MODE_OUTPUT_50_MHZ,
+			GPIO_CNF_OUTPUT_PUSHPULL, TCK_PIN);
+	gpio_set_mode(TDI_PORT, GPIO_MODE_OUTPUT_50_MHZ,
+			GPIO_CNF_OUTPUT_PUSHPULL, TDI_PIN);
+	uint16_t srst_pin = platform_hwversion() == 0 ?
+		SRST_PIN_V1 : SRST_PIN_V2;
+	gpio_set(SRST_PORT, srst_pin);
+	gpio_set_mode(SRST_PORT, GPIO_MODE_OUTPUT_50_MHZ,
+			GPIO_CNF_OUTPUT_OPENDRAIN, srst_pin);
+
+	gpio_set_mode(LED_PORT, GPIO_MODE_OUTPUT_2_MHZ,
+			GPIO_CNF_OUTPUT_PUSHPULL, led_idle_run);
 
 	/* Setup heartbeat timer */
 	systick_set_clocksource(STK_CSR_CLKSOURCE_AHB_DIV8);
@@ -141,13 +171,21 @@ void disconnect_usb(void)
 	rcc_peripheral_clear_reset(&RCC_APB1RSTR, RCC_APB1ENR_USBEN);
 	rcc_peripheral_enable_clock(&RCC_APB1ENR, RCC_APB1ENR_USBEN);
 	rcc_peripheral_enable_clock(&RCC_APB2ENR, RCC_APB2ENR_IOPAEN);
-    gpio_set_mode(GPIOA, GPIO_MODE_OUTPUT_2_MHZ, GPIO_CNF_OUTPUT_PUSHPULL, GPIO8);
-    gpio_clear(GPIOA, GPIO8); // pullup disabled
+	gpio_clear(GPIOA, GPIO12);
+	gpio_set_mode(GPIOA, GPIO_MODE_OUTPUT_2_MHZ,
+		GPIO_CNF_OUTPUT_OPENDRAIN, GPIO12);
 }
 
 void assert_boot_pin(void)
 {
-	rcc_peripheral_enable_clock(&RCC_APB2ENR, RCC_APB2ENR_IOPBEN);
-    gpio_set_mode(GPIOB, GPIO_MODE_INPUT, GPIO_CNF_INPUT_FLOAT, GPIO12); // PB12 is BOOT, active low
+	uint32_t crl = GPIOA_CRL;
+	rcc_peripheral_enable_clock(&RCC_APB2ENR, RCC_APB2ENR_IOPAEN);
+	/* Enable Pull on GPIOA1. We don't rely on the external pin
+	 * really pulled, but only on the value of the CNF register
+	 * changed from the reset value
+	 */
+	crl &= 0xffffff0f;
+	crl |= 0x80;
+	GPIOA_CRL = crl;
 }
 void setup_vbus_irq(void){};

@@ -24,11 +24,6 @@
 #include <libopencm3/cm3/scb.h>
 
 #include "usbdfu.h"
-#define STK_CTRL_CLKSOURCE      (1 << 2)
-#define STK_CTRL_CLKSOURCE_LSB      2
-#define STK_CTRL_CLKSOURCE_AHB_DIV8 0
-#define STK_CTRL_CLKSOURCE_AHB      1
-
 
 static uint8_t rev;
 static uint16_t led_idle_run;
@@ -48,20 +43,35 @@ static int stlink_test_nrst(void)
 	systick_counter_enable();
 	/* systick ist now running with 1 MHz, systick counts down */
 
+	/* First, get Board revision by pulling PC13/14 up. Read
+	 *  11 for ST-Link V1, e.g. on VL Discovery, tag as rev 0
+	 *  10 for ST-Link V2, e.g. on F4 Discovery, tag as rev 1
+	 */
+	rcc_peripheral_enable_clock(&RCC_APB2ENR, RCC_APB2ENR_IOPCEN);
+	gpio_set_mode(GPIOC, GPIO_MODE_INPUT,
+				  GPIO_CNF_INPUT_PULL_UPDOWN, GPIO14 | GPIO13);
+	gpio_set(GPIOC, GPIO14 | GPIO13);
 	systick_value = systick_get_value();
 	while (systick_get_value() > (systick_value - 1000)); /* Wait 1 msec*/
-	
-	pin = GPIO0;
-	led_idle_run = GPIO4;
-	
-	gpio_set_mode(GPIOB, GPIO_MODE_OUTPUT_2_MHZ, GPIO_CNF_OUTPUT_PUSHPULL, led_idle_run);
-    
-	rcc_peripheral_enable_clock(&RCC_APB2ENR, RCC_APB2ENR_IOPAEN);
-	gpio_set_mode(GPIOA, GPIO_MODE_INPUT, GPIO_CNF_INPUT_PULL_UPDOWN, GPIO2);
-	gpio_set(GPIOA, GPIO2); // set SRST
+	rev = (~(gpio_get(GPIOC, GPIO14 | GPIO13)) >> 13) & 3;
+	switch (rev) {
+	case 0:
+		pin = GPIO1;
+		led_idle_run = GPIO8;
+		break;
+	default:
+		pin = GPIO0;
+		led_idle_run = GPIO9;
+	}
+	gpio_set_mode(GPIOA, GPIO_MODE_OUTPUT_2_MHZ,
+			GPIO_CNF_OUTPUT_PUSHPULL, led_idle_run);
+	rcc_peripheral_enable_clock(&RCC_APB2ENR, RCC_APB2ENR_IOPBEN);
+	gpio_set_mode(GPIOB, GPIO_MODE_INPUT,
+			GPIO_CNF_INPUT_PULL_UPDOWN, pin);
+	gpio_set(GPIOB, pin);
 	systick_value = systick_get_value();
-	while (systick_get_value() > (systick_value - 20000)); // Wait 20 msec
-	nrst = gpio_get(GPIOA, GPIO2);
+	while (systick_get_value() > (systick_value - 20000)); /* Wait 20 msec*/
+	nrst = gpio_get(GPIOB, pin);
 	systick_counter_disable();
 	return (nrst) ? 1 : 0;
 }
@@ -70,13 +80,13 @@ void dfu_detach(void)
 {
 	/* Disconnect USB cable by resetting USB Device
 	   and pulling USB_DP low*/
-    rcc_peripheral_reset(&RCC_APB1RSTR, RCC_APB1ENR_USBEN);
-    rcc_peripheral_clear_reset(&RCC_APB1RSTR, RCC_APB1ENR_USBEN);
-    rcc_peripheral_enable_clock(&RCC_APB1ENR, RCC_APB1ENR_USBEN);
-    rcc_peripheral_enable_clock(&RCC_APB2ENR, RCC_APB2ENR_IOPAEN);
-    gpio_set_mode(GPIOA, GPIO_MODE_OUTPUT_2_MHZ, GPIO_CNF_OUTPUT_PUSHPULL, GPIO8);
-    gpio_set(GPIOA, GPIO8); // pullup enabled
-    
+	rcc_peripheral_reset(&RCC_APB1RSTR, RCC_APB1ENR_USBEN);
+	rcc_peripheral_clear_reset(&RCC_APB1RSTR, RCC_APB1ENR_USBEN);
+	rcc_peripheral_enable_clock(&RCC_APB1ENR, RCC_APB1ENR_USBEN);
+	rcc_peripheral_enable_clock(&RCC_APB2ENR, RCC_APB2ENR_IOPAEN);
+	gpio_clear(GPIOA, GPIO12);
+	gpio_set_mode(GPIOA, GPIO_MODE_OUTPUT_2_MHZ,
+		GPIO_CNF_OUTPUT_OPENDRAIN, GPIO12);
 	scb_reset_system();
 }
 
@@ -84,7 +94,11 @@ int main(void)
 {
 	/* Check the force bootloader pin*/
 	rcc_peripheral_enable_clock(&RCC_APB2ENR, RCC_APB2ENR_IOPAEN);
-	if(gpio_get(GPIOB, GPIO12) == 1) // BOOT not used
+	/* Check value of GPIOA1 configuration. This pin is unconnected on
+	 * STLink V1 and V2. If we have a value other than the reset value (0x4),
+	 * we have a warm start and request Bootloader entry
+	 */
+	if(((GPIOA_CRL & 0x40) == 0x40) && stlink_test_nrst())
 		dfu_jump_app_if_valid();
 
 	dfu_protect(DFU_MODE);
@@ -97,12 +111,13 @@ int main(void)
 	/* Just in case: Disconnect USB cable by resetting USB Device
          * and pulling USB_DP low
          * Device will reconnect automatically as Pull-Up is hard wired*/
-    rcc_peripheral_reset(&RCC_APB1RSTR, RCC_APB1ENR_USBEN);
-    rcc_peripheral_clear_reset(&RCC_APB1RSTR, RCC_APB1ENR_USBEN);
-    rcc_peripheral_enable_clock(&RCC_APB1ENR, RCC_APB1ENR_USBEN);
-    rcc_peripheral_enable_clock(&RCC_APB2ENR, RCC_APB2ENR_IOPAEN);
-    gpio_set_mode(GPIOA, GPIO_MODE_OUTPUT_2_MHZ, GPIO_CNF_OUTPUT_PUSHPULL, GPIO8);
-    gpio_set(GPIOA, GPIO8); // pullup enabled
+	rcc_peripheral_reset(&RCC_APB1RSTR, RCC_APB1ENR_USBEN);
+	rcc_peripheral_clear_reset(&RCC_APB1RSTR, RCC_APB1ENR_USBEN);
+	rcc_peripheral_enable_clock(&RCC_APB1ENR, RCC_APB1ENR_USBEN);
+	rcc_peripheral_enable_clock(&RCC_APB2ENR, RCC_APB2ENR_IOPAEN);
+	gpio_clear(GPIOA, GPIO12);
+	gpio_set_mode(GPIOA, GPIO_MODE_OUTPUT_2_MHZ,
+		GPIO_CNF_OUTPUT_OPENDRAIN, GPIO12);
 
 	systick_interrupt_enable();
 	systick_counter_enable();
@@ -115,12 +130,14 @@ int main(void)
 void sys_tick_handler(void)
 {
 	if (rev == 0) {
-		gpio_toggle(GPIOB, led_idle_run);
+		gpio_toggle(GPIOA, led_idle_run);
 	} else {
 		if (led2_state & 1) {
-			gpio_set_mode(GPIOB, GPIO_MODE_OUTPUT_2_MHZ, GPIO_CNF_OUTPUT_PUSHPULL, led_idle_run);
+			gpio_set_mode(GPIOA, GPIO_MODE_OUTPUT_2_MHZ,
+				GPIO_CNF_OUTPUT_PUSHPULL, led_idle_run);
 		} else {
-			gpio_set_mode(GPIOB, GPIO_MODE_INPUT, GPIO_CNF_INPUT_ANALOG, led_idle_run);
+			gpio_set_mode(GPIOA, GPIO_MODE_INPUT,
+				GPIO_CNF_INPUT_ANALOG, led_idle_run);
 		}
 		led2_state++;
 	}

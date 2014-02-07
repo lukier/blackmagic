@@ -41,7 +41,7 @@ main(int argc, char **argv)
 #else
 	(void) argc;
 	(void) argv;
-    platform_init();
+	assert(platform_init() == 0);
 #endif
 	PLATFORM_SET_FATAL_ERROR_RECOVERY();
 
