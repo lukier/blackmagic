@@ -32,7 +32,7 @@
 
 #include "gdb_packet.h"
 
-#define INLINE_GPIO
+//#define INLINE_GPIO
 #define CDCACM_PACKET_SIZE 	64
 #define PLATFORM_HAS_TRACESWO
 #define BOARD_IDENT             "Black Magic Probe"

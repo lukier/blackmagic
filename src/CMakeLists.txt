@@ -50,8 +50,8 @@ if(CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_GNUCXX)
     # ---------------------------------------------
     set(CMAKE_C_FLAGS_DEBUG            "${CMAKE_C_FLAGS_DEBUG} -Wall -Wextra ${WARN_SUPPR} ${X86_ARCH} -std=${STD_CC}")
     set(CMAKE_CXX_FLAGS_DEBUG          "${CMAKE_CXX_FLAGS_DEBUG} -Wall -Wextra ${WARN_SUPPR} ${X86_ARCH} -std=${STD_CXX}")
-    set(CMAKE_C_FLAGS_RELEASE          "${CMAKE_C_FLAGS_RELEASE} -Wall -Wextra ${WARN_SUPPR} ${X86_ARCH} -std=${STD_CC}")
-    set(CMAKE_CXX_FLAGS_RELEASE        "${CMAKE_CXX_FLAGS_RELEASE} -Wall -Wextra ${WARN_SUPPR} ${X86_ARCH} -std=${STD_CXX}")
+    set(CMAKE_C_FLAGS_RELEASE          "${CMAKE_C_FLAGS_RELEASE} -g -Wall -Wextra ${WARN_SUPPR} ${X86_ARCH} -std=${STD_CC}")
+    set(CMAKE_CXX_FLAGS_RELEASE        "${CMAKE_CXX_FLAGS_RELEASE} -g -Wall -Wextra ${WARN_SUPPR} ${X86_ARCH} -std=${STD_CXX}")
     set(CMAKE_C_FLAGS_RELWITHDEBINFO   "${CMAKE_C_FLAGS_RELWITHDEBINFO} -Wall -Wextra ${WARN_SUPPR} ${X86_ARCH} -std=${STD_CC}")
     set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} -Wall -Wextra ${WARN_SUPPR} ${X86_ARCH} -std=${STD_CXX}")
 endif()
@@ -171,7 +171,7 @@ include_directories(include)
 include_directories(platforms/stm32)
 include_directories(platforms/native)
 
-add_definitions(-DSTM32F1 -DBLACKMAGIC)
+add_definitions(-DSTM32F1 -DBLACKMAGIC)# -DDEBUG_EARLY)
 add_definitions(-DBUILDDATE=\"2014-02-07\" -DVERSION_SUFFIX=\"CMAKE\")
 
 set(SOURCES

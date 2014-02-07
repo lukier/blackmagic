@@ -14,3 +14,4 @@ tags
 *.s#*
 *.b#*
 src/obj_arm
+src/*.kdev4

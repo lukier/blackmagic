@@ -69,12 +69,9 @@ void usbuart_init(void)
 	/* Setup timer for running deferred FIFO processing */
 	USBUSART_TIM_CLK_EN();
 	timer_reset(USBUSART_TIM);
-	timer_set_mode(USBUSART_TIM, TIM_CR1_CKD_CK_INT,
-			TIM_CR1_CMS_EDGE, TIM_CR1_DIR_UP);
-	timer_set_prescaler(USBUSART_TIM,
-			rcc_ppre2_frequency / USBUART_TIMER_FREQ_HZ * 2 - 1);
-	timer_set_period(USBUSART_TIM,
-			USBUART_TIMER_FREQ_HZ / USBUART_RUN_FREQ_HZ - 1);
+	timer_set_mode(USBUSART_TIM, TIM_CR1_CKD_CK_INT, TIM_CR1_CMS_EDGE, TIM_CR1_DIR_UP);
+	timer_set_prescaler(USBUSART_TIM, rcc_ppre2_frequency / USBUART_TIMER_FREQ_HZ * 2 - 1);
+	timer_set_period(USBUSART_TIM, USBUART_TIMER_FREQ_HZ / USBUART_RUN_FREQ_HZ - 1);
 
 	/* Setup update interrupt in NVIC */
 	nvic_set_priority(USBUSART_TIM_IRQ, IRQ_PRI_USBUSART_TIM);
@@ -123,8 +120,7 @@ static void usbuart_run(void)
 		}
 
 		/* advance fifo out pointer by amount written */
-		buf_rx_out += usbd_ep_write_packet(usbdev,
-				CDCACM_UART_ENDPOINT, packet_buf, packet_size);
+		buf_rx_out += usbd_ep_write_packet(usbdev, CDCACM_UART_ENDPOINT, packet_buf, packet_size);
 		buf_rx_out %= FIFO_SIZE;
 	}
 }
@@ -162,20 +158,13 @@ void usbuart_usb_out_cb(usbd_device *dev, uint8_t ep)
 	(void)ep;
 
 	char buf[CDCACM_PACKET_SIZE];
-	int len = usbd_ep_read_packet(dev, CDCACM_UART_ENDPOINT,
-					buf, CDCACM_PACKET_SIZE);
-
-#if defined(BLACKMAGIC)
-	/* Don't bother if uart is disabled.
-	 * This will be the case on mini while we're being debugged.
-	 */
-	if(!(RCC_APB2ENR & RCC_APB2ENR_USART1EN))
-		return;
-#endif
+	int len = usbd_ep_read_packet(dev, CDCACM_UART_ENDPOINT, buf, CDCACM_PACKET_SIZE);
 
 	gpio_set(LED_PORT_UART, LED_UART);
+#ifndef DEBUG_OUTPUT
 	for(int i = 0; i < len; i++)
 		usart_send_blocking(USBUSART, buf[i]);
+#endif
 	gpio_clear(LED_PORT_UART, LED_UART);
 }
 
@@ -186,6 +175,33 @@ void usbuart_usb_in_cb(usbd_device *dev, uint8_t ep)
 	(void) ep;
 }
 
+#ifdef DEBUG_OUTPUT
+int _write(int file, void* ptr, int len)
+{
+    uint8_t* uptr = (uint8_t*)ptr;
+    
+    for(int i = 0 ; i < len ; ++i)
+    {
+        if (((buf_rx_in + 1) % FIFO_SIZE) != buf_rx_out)
+        {
+            /* insert into FIFO */
+            buf_rx[buf_rx_in++] = uptr[i];
+            
+            /* wrap out pointer */
+            if (buf_rx_in >= FIFO_SIZE)
+            {
+                buf_rx_in = 0;
+            }
+            
+            /* enable deferred processing if we put data in the FIFO */
+            timer_enable_irq(USBUSART_TIM, TIM_DIER_UIE);
+        }
+    }
+    
+    return len;
+}
+#endif
+
 /*
  * Read a character from the UART RX and stuff it in a software FIFO.
  * Allowed to read from FIFO out pointer, but not write to it.
@@ -194,6 +210,7 @@ void usbuart_usb_in_cb(usbd_device *dev, uint8_t ep)
 void USBUSART_ISR(void)
 {
 	char c = usart_recv(USBUSART);
+    (void)c;
 
 	/* Turn on LED */
 	gpio_set(LED_PORT_UART, LED_UART);
@@ -201,6 +218,7 @@ void USBUSART_ISR(void)
 	/* If the next increment of rx_in would put it at the same point
 	* as rx_out, the FIFO is considered full.
 	*/
+#ifndef DEBUG_OUTPUT
 	if (((buf_rx_in + 1) % FIFO_SIZE) != buf_rx_out)
 	{
 		/* insert into FIFO */
@@ -215,6 +233,7 @@ void USBUSART_ISR(void)
 		/* enable deferred processing if we put data in the FIFO */
 		timer_enable_irq(USBUSART_TIM, TIM_DIER_UIE);
 	}
+#endif
 }
 
 void USBUSART_TIM_ISR(void)
