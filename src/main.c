@@ -37,11 +37,11 @@ int
 main(int argc, char **argv)
 {
 #if defined(LIBFTDI)
-	assert(platform_init(argc, argv) == 0);
+	platform_init(argc, argv);
 #else
 	(void) argc;
 	(void) argv;
-	assert(platform_init() == 0);
+    platform_init();
 #endif
 	PLATFORM_SET_FATAL_ERROR_RECOVERY();
 
