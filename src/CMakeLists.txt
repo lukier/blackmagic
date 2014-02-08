@@ -55,16 +55,21 @@ platforms/roblink/usbdfu.c
 )
 
 #*******************************************************************************
-# Build the apps
+# Build BlackMagic
 #*******************************************************************************
-add_subdirectory(platforms/roblink) # build bootloader there
-
-# ---------------------------------------------
-# Append linker flags for BlackMagic
-# ---------------------------------------------
-set(CMAKE_EXE_LINKER_FLAGS_DEBUG "${CMAKE_EXE_LINKER_FLAGS_DEBUG} -Wl,-Ttext=0x8002000")
-set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} -Wl,-Ttext=0x8002000")
-
 add_executable(blackmagic ${SOURCES} ${SOURCES_PLATFORM})
 target_link_libraries(blackmagic ${OPENCM3_LIBRARIES})
 embedded_framework_binhex(blackmagic)
+
+set_target_properties(blackmagic PROPERTIES LINK_FLAGS_DEBUG "-Wl,-Ttext=0x8002000")
+set_target_properties(blackmagic PROPERTIES LINK_FLAGS_RELEASE "-Wl,-Ttext=0x8002000")
+
+add_custom_target(fwupdate DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/blackmagic.bin COMMAND dfu-util -s 0x08002000 -D ${CMAKE_CURRENT_BINARY_DIR}/blackmagic.bin COMMENT "DFU Upload")
+
+#*******************************************************************************
+# Build the bootloader without Ttext
+#*******************************************************************************
+add_executable(bootloader ${SOURCES_BOOTLOADER})
+target_link_libraries(bootloader ${OPENCM3_LIBRARIES})
+embedded_framework_binhex(bootloader)
+

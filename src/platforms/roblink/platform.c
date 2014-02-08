@@ -61,50 +61,6 @@ int _write(int file, void* ptr, int len)
 int platform_init(void)
 {
 	rcc_clock_setup_in_hse_8mhz_out_72mhz();
-    
-#ifdef DEBUG_EARLY
-    rcc_peripheral_enable_clock(&USBUSART_PORT_APB_ENR, USBUSART_PORT_ENABLE);
-    rcc_peripheral_enable_clock(&USBUSART_APB_ENR, USBUSART_CLK_ENABLE);
-    
-    UART_PIN_SETUP();
-    
-    /* Setup UART parameters. */
-    usart_set_baudrate(USBUSART, 115200);
-    usart_set_databits(USBUSART, 8);
-    usart_set_stopbits(USBUSART, USART_STOPBITS_1);
-    usart_set_mode(USBUSART, USART_MODE_TX_RX);
-    usart_set_parity(USBUSART, USART_PARITY_NONE);
-    usart_set_flow_control(USBUSART, USART_FLOWCONTROL_NONE);
-    
-    /* Finally enable the USART. */
-    usart_enable(USBUSART);
-    
-    rcc_peripheral_enable_clock(&RCC_APB2ENR, RCC_APB2ENR_IOPBEN);
-    rcc_peripheral_enable_clock(&RCC_APB2ENR, RCC_APB2ENR_AFIOEN);
-
-    
-    
-    gpio_set_mode(LED_PORT, GPIO_MODE_OUTPUT_2_MHZ, GPIO_CNF_OUTPUT_PUSHPULL, LED_UART);
-    gpio_set_mode(LED_PORT, GPIO_MODE_OUTPUT_2_MHZ, GPIO_CNF_OUTPUT_PUSHPULL, LED_IDLE_RUN);
-    gpio_set_mode(LED_PORT, GPIO_MODE_OUTPUT_2_MHZ, GPIO_CNF_OUTPUT_PUSHPULL, LED_ERROR);
-    
-    gpio_set(LED_PORT, LED_UART | LED_IDLE_RUN | LED_ERROR);
-    gpio_clear(LED_PORT, LED_UART | LED_IDLE_RUN | LED_ERROR);
-    
-    for(int z = 0 ; z < 5 ; ++z)
-    {
-        gpio_set(LED_PORT, LED_UART | LED_IDLE_RUN | LED_ERROR);
-        for(int i = 0 ; i < 1000000 ; ++i) { __asm__("nop"); }
-        gpio_clear(LED_PORT, LED_UART | LED_IDLE_RUN | LED_ERROR);
-        for(int i = 0 ; i < 1000000 ; ++i) { __asm__("nop"); }
-        puts("Test\r\n");
-    }
-    
-    
-    
-    puts("Early debugging enabled, loopy\r\n");
-    
-#endif
 
 	/* Enable peripherals */
 	rcc_peripheral_enable_clock(&RCC_APB1ENR, RCC_APB1ENR_USBEN);
@@ -164,9 +120,7 @@ int platform_init(void)
 	SCB_VTOR = 0x2000;	// Relocate interrupt vector table here
 
 	cdcacm_init();
-#ifndef DEBUG_EARLY
 	usbuart_init();
-#endif
 
 	jtag_scan(NULL);
 

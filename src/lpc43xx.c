@@ -155,6 +155,33 @@ static const char lpc4337_xml_memory_map[] = "<?xml version=\"1.0\"?>"
 "  <memory type=\"ram\" start=\"0x1B080000\" length=\"0xE4F80000\"/>"
 "</memory-map>";
 
+static const char lpc4330_xml_memory_map[] = "<?xml version=\"1.0\"?>"
+/*
+ " <!DOCTYPE m*emory-map "
+ " PUBLIC \"+//IDN gnu.org//DTD GDB Memory Map V1.0//EN\""
+ "\"http://sourceware.org/gdb/gdb-memory-map.dtd\">"
+ */
+"<memory-map>"
+"  <memory type=\"ram\" start=\"0x00000000\" length=\"0x10000000\"/>"   // shadow?
+"  <memory type=\"ram\" start=\"0x10000000\" length=\"0x20000\"/>"      // Local SRAM
+"  <memory type=\"ram\" start=\"0x10080000\" length=\"0x12000\"/>"      // Local SRAM
+"  <memory type=\"ram\" start=\"0x20000000\" length=\"0x8000\"/>"       // AHB SRAM
+"  <memory type=\"ram\" start=\"0x20080000\" length=\"0x4000\"/>"       // AHB SRAM
+"  <memory type=\"ram\" start=\"0x200C0000\" length=\"0x4000\"/>"       // AHB SRAM
+"  <memory type=\"flash\" start=\"0x14000000\" length=\"0x1000000\">"   // SPIFI flash
+"    <property name=\"blocksize\">0x10000</property>"                   // SPIFI flash erase sector size
+"  </memory>"
+"  <memory type=\"rom\" start=\"0x10400000\" length=\"0x10000\"/>"      // NXP ROM
+"  <memory type=\"ram\" start=\"0x1C000000\" length=\"0x1000000\"/>"    // CS0
+"  <memory type=\"ram\" start=\"0x1D000000\" length=\"0x1000000\"/>"    // CS1
+"  <memory type=\"ram\" start=\"0x1E000000\" length=\"0x1000000\"/>"    // CS2
+"  <memory type=\"ram\" start=\"0x1F000000\" length=\"0x1000000\"/>"    // CS3
+"  <memory type=\"ram\" start=\"0x28000000\" length=\"0x8000000\"/>"    // DYCS0
+"  <memory type=\"ram\" start=\"0x30000000\" length=\"0x10000000\"/>"   // DYCS1
+"  <memory type=\"ram\" start=\"0x60000000\" length=\"0x10000000\"/>"   // DYCS2
+"  <memory type=\"ram\" start=\"0x70000000\" length=\"0x10000000\"/>"   // DYCS3
+"</memory-map>";
+
 bool lpc43xx_probe(struct target_s *target)
 {
 	uint32_t chipid, cpuid;
@@ -187,7 +214,12 @@ bool lpc43xx_probe(struct target_s *target)
 		case 0x6906002B:
 			switch (cpuid & 0xFF00FFF0) {
 				case 0x4100C240:
-					target->driver = "LPC43xx Cortex-M4";
+                    target->driver = "LPC43xx Cortex-M4";
+                    /* LPC4330 */
+                    target->xml_mem_map = lpc4330_xml_memory_map;
+                    //target->flash_erase = lpc43xx_flash_erase; TODO FIXME implement SPIFI
+                    //target->flash_write = lpc43xx_flash_write; TODO FIXME implement SPIFI
+                    target_add_commands(target, lpc43xx_cmd_list, "LPC43xx");
 					break;
 				case 0x4100C200:
 					target->driver = "LPC43xx Cortex-M0";

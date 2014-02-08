@@ -52,8 +52,8 @@ extern usbd_device *usbdev;
 #define LED_PORT                GPIOB
 #define LED_PORT_UART           GPIOB
 #define LED_UART                GPIO4
-#define LED_IDLE_RUN            GPIO5
-#define LED_ERROR               GPIO3
+#define LED_IDLE_RUN            GPIO3
+#define LED_ERROR               GPIO5
 
 #define TMS_SET_MODE()          gpio_set_mode(TMS_PORT, GPIO_MODE_OUTPUT_50_MHZ, GPIO_CNF_OUTPUT_PUSHPULL, TMS_PIN);
 #define SWDIO_MODE_FLOAT()      gpio_set_mode(SWDIO_PORT, GPIO_MODE_INPUT, GPIO_CNF_INPUT_FLOAT, SWDIO_PIN);
