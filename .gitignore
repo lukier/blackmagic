@@ -13,3 +13,7 @@ tags
 .gdbinit
 *.s#*
 *.b#*
+*.kdev4
+obj
+obj_arm
+obj_release
