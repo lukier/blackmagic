@@ -113,13 +113,13 @@ int jtag_scan(const uint8_t *irlens)
 	/* Run throught the SWD to JTAG sequence for the case where an attached SWJ-DP is
 	 * in SW-DP mode.
 	 */
-	DEBUG("Resetting TAP\n");
+    DEBUG("Resetting TAP\r\n");
 	jtagtap_init();
 	jtagtap_reset();
 
 	if (irlens) {
-		DEBUG("Given list of IR lengths, skipping probe\n");
-		DEBUG("Change state to Shift-IR\n");
+        DEBUG("Given list of IR lengths, skipping probe\r\n");
+        DEBUG("Change state to Shift-IR\r\n");
 		jtagtap_shift_ir();
 		j = 0;
 		while((jtag_dev_count <= JTAG_MAX_DEVS) &&
@@ -129,7 +129,7 @@ int jtag_scan(const uint8_t *irlens)
 				break;
 			jtagtap_tdi_tdo_seq((uint8_t*)&irout, 0, ones, *irlens);
 			if (!(irout & 1)) {
-				DEBUG("check failed: IR[0] != 1\n");
+                DEBUG("check failed: IR[0] != 1\r\n");
 				return -1;
 			}
 			jtag_devs[jtag_dev_count].ir_len = *irlens;
@@ -140,12 +140,12 @@ int jtag_scan(const uint8_t *irlens)
 			jtag_dev_count++;
 		}
 	} else {
-		DEBUG("Change state to Shift-IR\n");
+        DEBUG("Change state to Shift-IR\r\n");
 		jtagtap_shift_ir();
 
-		DEBUG("Scanning out IRs\n");
+        DEBUG("Scanning out IRs\r\n");
 		if(!jtagtap_next(0, 1)) {
-			DEBUG("jtag_scan: Sanity check failed: IR[0] shifted out as 0\n");
+            DEBUG("jtag_scan: Sanity check failed: IR[0] shifted out as 0\r\n");
 			jtag_dev_count = -1;
 			return -1; /* must be 1 */
 		}
@@ -161,37 +161,37 @@ int jtag_scan(const uint8_t *irlens)
 			j++;
 		}
 		if(jtag_dev_count > JTAG_MAX_DEVS) {
-			DEBUG("jtag_scan: Maximum device count exceeded\n");
+            DEBUG("jtag_scan: Maximum device count exceeded\r\n");
 			jtag_dev_count = -1;
 			return -1;
 		}
 		if(jtag_devs[jtag_dev_count].ir_len > JTAG_MAX_IR_LEN) {
-			DEBUG("jtag_scan: Maximum IR length exceeded\n");
+            DEBUG("jtag_scan: Maximum IR length exceeded\r\n");
 			jtag_dev_count = -1;
 			return -1;
 		}
 	}
 
-	DEBUG("Return to Run-Test/Idle\n");
+	DEBUG("Return to Run-Test/Idle\r\n");
 	jtagtap_next(1, 1);
 	jtagtap_return_idle();
 
 	/* All devices should be in BYPASS now */
 
 	/* Count device on chain */
-	DEBUG("Change state to Shift-DR\n");
+    DEBUG("Change state to Shift-DR\r\n");
 	jtagtap_shift_dr();
 	for(i = 0; (jtagtap_next(0, 1) == 0) && (i <= jtag_dev_count); i++)
 		jtag_devs[i].dr_postscan = jtag_dev_count - i - 1;
 
 	if(i != jtag_dev_count) {
 		DEBUG("jtag_scan: Sanity check failed: "
-			"BYPASS dev count doesn't match IR scan\n");
+        "BYPASS dev count doesn't match IR scan\r\n");
 		jtag_dev_count = -1;
 		return -1;
 	}
 
-	DEBUG("Return to Run-Test/Idle\n");
+	DEBUG("Return to Run-Test/Idle\r\n");
 	jtagtap_next(1, 1);
 	jtagtap_return_idle();
 	if(!jtag_dev_count) {
@@ -214,7 +214,7 @@ int jtag_scan(const uint8_t *irlens)
 			if(jtagtap_next(0, 1)) jtag_devs[i].idcode |= j;
 
 	}
-	DEBUG("Return to Run-Test/Idle\n");
+	DEBUG("Return to Run-Test/Idle\r\n");
 	jtagtap_next(1, 1);
 	jtagtap_return_idle();
 

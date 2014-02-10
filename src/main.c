@@ -33,6 +33,33 @@
 
 #include "target.h"
 
+// main stack memory
+uint8_t _main_stack[MAIN_STACK_SIZE] __attribute__ ((section(".stack.main")));
+
+extern uint32_t __heap_end;
+extern uint32_t __heap_start;
+static char* heap_curr = 0; 
+
+caddr_t _sbrk(int incr) 
+{
+    char *prev_heap_end;
+    
+    if (heap_curr == 0) 
+    {
+        heap_curr = (char*)(&__heap_start);
+    }
+    prev_heap_end = heap_curr;
+    
+    if (heap_curr + incr > (char*)&__heap_end) 
+    {
+        return (caddr_t)0;
+    }
+    
+    heap_curr += incr;
+    
+    return (caddr_t) prev_heap_end;
+}
+
 int
 main(int argc, char **argv)
 {

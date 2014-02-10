@@ -11,7 +11,7 @@
 
 #define INLINE_GPIO
 #define CDCACM_PACKET_SIZE      64
-#define PLATFORM_HAS_TRACESWO
+//#define PLATFORM_HAS_TRACESWO//LUKIER
 #define BOARD_IDENT             "Black Magic Probe"
 #define BOARD_IDENT_DFU         "Black Magic Probe (Upgrade)"
 #define BOARD_IDENT_UPD         "Black Magic Probe (DFU Upgrade)"
@@ -95,7 +95,7 @@ extern usbd_device *usbdev;
 #define TRACE_IRQ               NVIC_TIM3_IRQ
 #define TRACE_ISR               tim3_isr
 
-#define DEBUG(...)
+#define DEBUG(...) printf(__VA_ARGS__)
 
 extern uint8_t running_status;
 extern volatile uint32_t timeout_counter;

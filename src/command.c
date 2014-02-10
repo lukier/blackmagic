@@ -138,7 +138,7 @@ static bool cmd_jtag_scan(target *t, int argc, char **argv)
 {
 	(void)t;
 	uint8_t *irlens = NULL;
-
+#if 0 //LUKIER
 	gdb_outf("Target voltage: %s\n", platform_target_voltage());
 
 	if (argc > 1) {
@@ -166,6 +166,7 @@ static bool cmd_jtag_scan(target *t, int argc, char **argv)
 			 jtag_devs[i].descr);
 	gdb_out("\n");
 	cmd_targets(NULL);
+#endif
 	return true;
 }
 

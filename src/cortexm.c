@@ -369,13 +369,13 @@ cortexm_probe(struct target_s *target)
 #define PROBE(x) \
 	do { if ((x)(target)) return true; else target_check_error(target); } while (0)
 
-	PROBE(stm32f1_probe);
-	PROBE(stm32f4_probe);
-	PROBE(stm32l1_probe);
-	PROBE(lpc11xx_probe);
+    //PROBE(stm32f1_probe);//LUKIER
+	//PROBE(stm32f4_probe);
+	//PROBE(stm32l1_probe);
+	//PROBE(lpc11xx_probe);
 	PROBE(lpc43xx_probe);
-	PROBE(sam3x_probe);
-	PROBE(lmi_probe);
+	//PROBE(sam3x_probe);
+	//PROBE(lmi_probe);
 #undef PROBE
 
 	return true;
@@ -940,7 +940,7 @@ static int cortexm_hostio_request(target *t)
 	target_mem_read_words(t, params, arm_regs[1], sizeof(params));
 	priv->syscall = arm_regs[0];
 
-	DEBUG("syscall 0x%x (%x %x %x %x)\n", priv->syscall,
+    DEBUG("syscall 0x%x (%x %x %x %x)\r\n", priv->syscall,
 			params[0], params[1], params[2], params[3]);
 	switch (priv->syscall) {
 	case SYS_OPEN:{	/* open */
@@ -1037,7 +1037,7 @@ static void cortexm_hostio_reply(target *t, int32_t retcode, uint32_t errcode)
 	struct cortexm_priv *priv = ap->priv;
 	uint32_t arm_regs[t->regs_size];
 
-	DEBUG("syscall return ret=%d errno=%d\n", retcode, errcode);
+    DEBUG("syscall return ret=%d errno=%d\r\n", retcode, errcode);
 	target_regs_read(t, arm_regs);
 	if (((priv->syscall == SYS_READ) || (priv->syscall == SYS_WRITE)) &&
 	    (retcode > 0))

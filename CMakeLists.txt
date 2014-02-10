@@ -50,8 +50,8 @@ if(CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_GNUCXX)
     # ---------------------------------------------
     set(CMAKE_C_FLAGS_DEBUG            "-O0 -g -Wall -Wextra ${WARN_SUPPR} ${X86_ARCH} -std=${STD_CC}")
     set(CMAKE_CXX_FLAGS_DEBUG          "-O0 -g -Wall -Wextra ${WARN_SUPPR} ${X86_ARCH} -std=${STD_CXX}")
-    set(CMAKE_C_FLAGS_RELEASE          "-Os -g -Wall -Wextra ${WARN_SUPPR} ${X86_ARCH} -std=${STD_CC}")
-    set(CMAKE_CXX_FLAGS_RELEASE        "-Os -g -Wall -Wextra ${WARN_SUPPR} ${X86_ARCH} -std=${STD_CXX}")
+    set(CMAKE_C_FLAGS_RELEASE          "-O0 -g -Wall -Wextra ${WARN_SUPPR} ${X86_ARCH} -std=${STD_CC}")
+    set(CMAKE_CXX_FLAGS_RELEASE        "-O0 -g -Wall -Wextra ${WARN_SUPPR} ${X86_ARCH} -std=${STD_CXX}")
 endif()
 
 #*******************************************************************************
@@ -125,8 +125,8 @@ set(EMBEDDED_LDSCRIPT roblink.ld)
 # ---------------------------------------------
 # Append linker flags
 # ---------------------------------------------
-set(CMAKE_EXE_LINKER_FLAGS_DEBUG "${CMAKE_EXE_LINKER_FLAGS_DEBUG} -T${EMBEDDED_LDSCRIPT} -Wl,--defsym,_stack=0x20005000") # -Wl,-Ttext=0x8002000
-set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} -T${EMBEDDED_LDSCRIPT} -Wl,--defsym,_stack=0x20005000") # -Wl,-Ttext=0x8002000
+set(CMAKE_EXE_LINKER_FLAGS_DEBUG "${CMAKE_EXE_LINKER_FLAGS_DEBUG} -T${EMBEDDED_LDSCRIPT}") 
+set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} -T${EMBEDDED_LDSCRIPT}")
 
 # ---------------------------------------------
 # Linker paths and libraries
@@ -156,6 +156,7 @@ endfunction()
 #*******************************************************************************
 # Build
 #*******************************************************************************
+add_definitions(-DMAIN_STACK_SIZE=4096)
 set(EMBEDDED_CPU_NAME STM32F103)
 add_subdirectory(libopencm3)
 add_subdirectory(src)

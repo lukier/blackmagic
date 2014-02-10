@@ -121,8 +121,10 @@ int platform_init(void)
 
 	cdcacm_init();
 	usbuart_init();
+    
+    DEBUG("Platform ready\r\n");
 
-	jtag_scan(NULL);
+// LUKIER	jtag_scan(NULL);
 
 	return 0;
 }

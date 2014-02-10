@@ -116,12 +116,18 @@ struct flash_program {
 static bool lpc43xx_cmd_erase(target *target, int argc, const char *argv[]);
 static bool lpc43xx_cmd_reset(target *target, int argc, const char *argv[]);
 static bool lpc43xx_cmd_mkboot(target *target, int argc, const char *argv[]);
+
+static void lpc43xx_reset(struct target_s *target);
 static int lpc43xx_flash_init(struct target_s *target);
 static void lpc43xx_iap_call(struct target_s *target, struct flash_param *param, unsigned param_len);
 static int lpc43xx_flash_prepare(struct target_s *target, uint32_t addr, int len);
 static int lpc43xx_flash_erase(struct target_s *target, uint32_t addr, int len);
 static int lpc43xx_flash_write(struct target_s *target, uint32_t dest, const uint8_t *src, int len);
 static void lpc43xx_set_internal_clock(struct target_s *target);
+
+static int lpc43xx_spifi_init(struct target_s *target);
+static int lpc43xx_spifi_write(struct target_s *target, uint32_t dest, const uint8_t *src, int len);
+static int lpc43xx_spifi_erase(struct target_s *target, uint32_t addr, int len);
 
 const struct command_s lpc43xx_cmd_list[] = {
 	{"erase_mass", lpc43xx_cmd_erase, "Erase entire flash memory"},
@@ -171,15 +177,18 @@ static const char lpc4330_xml_memory_map[] = "<?xml version=\"1.0\"?>"
 "  <memory type=\"flash\" start=\"0x14000000\" length=\"0x1000000\">"   // SPIFI flash
 "    <property name=\"blocksize\">0x10000</property>"                   // SPIFI flash erase sector size
 "  </memory>"
+"  <memory type=\"flash\" start=\"0x80000000\" length=\"0x1000000\">"   // SPIFI flash alternative location
+"    <property name=\"blocksize\">0x10000</property>"                   // SPIFI flash erase sector size
+"  </memory>"
 "  <memory type=\"rom\" start=\"0x10400000\" length=\"0x10000\"/>"      // NXP ROM
-"  <memory type=\"ram\" start=\"0x1C000000\" length=\"0x1000000\"/>"    // CS0
-"  <memory type=\"ram\" start=\"0x1D000000\" length=\"0x1000000\"/>"    // CS1
-"  <memory type=\"ram\" start=\"0x1E000000\" length=\"0x1000000\"/>"    // CS2
-"  <memory type=\"ram\" start=\"0x1F000000\" length=\"0x1000000\"/>"    // CS3
-"  <memory type=\"ram\" start=\"0x28000000\" length=\"0x8000000\"/>"    // DYCS0
-"  <memory type=\"ram\" start=\"0x30000000\" length=\"0x10000000\"/>"   // DYCS1
-"  <memory type=\"ram\" start=\"0x60000000\" length=\"0x10000000\"/>"   // DYCS2
-"  <memory type=\"ram\" start=\"0x70000000\" length=\"0x10000000\"/>"   // DYCS3
+//"  <memory type=\"ram\" start=\"0x1C000000\" length=\"0x1000000\"/>"    // CS0 - ignore that, the debugger wont initialize memory controller
+//"  <memory type=\"ram\" start=\"0x1D000000\" length=\"0x1000000\"/>"    // CS1
+//"  <memory type=\"ram\" start=\"0x1E000000\" length=\"0x1000000\"/>"    // CS2
+//"  <memory type=\"ram\" start=\"0x1F000000\" length=\"0x1000000\"/>"    // CS3
+//"  <memory type=\"ram\" start=\"0x28000000\" length=\"0x8000000\"/>"    // DYCS0
+//"  <memory type=\"ram\" start=\"0x30000000\" length=\"0x10000000\"/>"   // DYCS1
+//"  <memory type=\"ram\" start=\"0x60000000\" length=\"0x10000000\"/>"   // DYCS2
+//"  <memory type=\"ram\" start=\"0x70000000\" length=\"0x10000000\"/>"   // DYCS3
 "</memory-map>";
 
 bool lpc43xx_probe(struct target_s *target)
@@ -217,8 +226,9 @@ bool lpc43xx_probe(struct target_s *target)
                     target->driver = "LPC43xx Cortex-M4";
                     /* LPC4330 */
                     target->xml_mem_map = lpc4330_xml_memory_map;
-                    //target->flash_erase = lpc43xx_flash_erase; TODO FIXME implement SPIFI
-                    //target->flash_write = lpc43xx_flash_write; TODO FIXME implement SPIFI
+                    target->reset = lpc43xx_reset; // override CortexM reset
+                    target->flash_erase = lpc43xx_spifi_erase;// TODO FIXME implement SPIFI
+                    target->flash_write = lpc43xx_spifi_write;// TODO FIXME implement SPIFI
                     target_add_commands(target, lpc43xx_cmd_list, "LPC43xx");
 					break;
 				case 0x4100C200:
@@ -233,16 +243,21 @@ bool lpc43xx_probe(struct target_s *target)
 	return false;
 }
 
+static void lpc43xx_reset(struct target_s *target)
+{
+    /* Cortex-M4 Application Interrupt and Reset Control Register */
+    static const uint32_t AIRCR = 0xE000ED0C;
+    /* Magic value key */
+    static const uint32_t reset_val = 0x05FA0004;
+    
+    /* System reset on target */
+    target_mem_write_words(target, AIRCR, &reset_val, sizeof(reset_val));
+}
+
 /* Reset all major systems _except_ debug */
 static bool lpc43xx_cmd_reset(target *target, int __attribute__((unused)) argc, const char __attribute__((unused)) *argv[])
 {
-	/* Cortex-M4 Application Interrupt and Reset Control Register */
-	static const uint32_t AIRCR = 0xE000ED0C;
-	/* Magic value key */
-	static const uint32_t reset_val = 0x05FA0004;
-
-	/* System reset on target */
-	target_mem_write_words(target, AIRCR, &reset_val, sizeof(reset_val));
+	lpc43xx_reset(target);
 
 	return true;
 }
@@ -587,3 +602,19 @@ static bool lpc43xx_cmd_mkboot(target *target, int argc, const char *argv[])
 	return false;
 }
 
+static int lpc43xx_spifi_init(struct target_s *target)
+{
+    return 0;
+}
+
+static int lpc43xx_spifi_write(struct target_s *target, uint32_t dest, const uint8_t *src, int len)
+{
+    DEBUG(__PRETTY_FUNCTION__);
+    return 0;
+}
+
+static int lpc43xx_spifi_erase(struct target_s *target, uint32_t addr, int len)
+{
+    DEBUG(__PRETTY_FUNCTION__);
+    return 0;
+}
