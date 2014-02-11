@@ -43,6 +43,13 @@ static uint8_t buf_rx_in;
 /* Fifo out pointer, writes assumed to be atomic, should be only incremented outside RX ISR */
 static uint8_t buf_rx_out;
 
+/* TX Fifo buffer */
+static uint8_t buf_tx[FIFO_SIZE];
+/* Fifo in pointer, writes assumed to be atomic, should be only incremented within RX ISR */
+static uint8_t buf_tx_in;
+/* Fifo out pointer, writes assumed to be atomic, should be only incremented outside RX ISR */
+static uint8_t buf_tx_out;
+
 static void usbuart_run(void);
 
 void usbuart_init(void)
@@ -64,19 +71,16 @@ void usbuart_init(void)
     usart_enable(USBUSART);
 
     /* Enable interrupts */
-    USBUSART_CR1 |= USART_CR1_RXNEIE;
+    USBUSART_CR1 |= USART_CR1_RXNEIE | USART_CR1_TXEIE;
     nvic_set_priority(USBUSART_IRQ, IRQ_PRI_USBUSART);
     nvic_enable_irq(USBUSART_IRQ);
 #endif
     /* Setup timer for running deferred FIFO processing */
     USBUSART_TIM_CLK_EN();
     timer_reset(USBUSART_TIM);
-    timer_set_mode(USBUSART_TIM, TIM_CR1_CKD_CK_INT,
-            TIM_CR1_CMS_EDGE, TIM_CR1_DIR_UP);
-    timer_set_prescaler(USBUSART_TIM,
-            rcc_ppre2_frequency / USBUART_TIMER_FREQ_HZ * 2 - 1);
-    timer_set_period(USBUSART_TIM,
-            USBUART_TIMER_FREQ_HZ / USBUART_RUN_FREQ_HZ - 1);
+    timer_set_mode(USBUSART_TIM, TIM_CR1_CKD_CK_INT, TIM_CR1_CMS_EDGE, TIM_CR1_DIR_UP);
+    timer_set_prescaler(USBUSART_TIM, rcc_ppre2_frequency / USBUART_TIMER_FREQ_HZ * 2 - 1);
+    timer_set_period(USBUSART_TIM, USBUART_TIMER_FREQ_HZ / USBUART_RUN_FREQ_HZ - 1);
 
     /* Setup update interrupt in NVIC */
     nvic_set_priority(USBUSART_TIM_IRQ, IRQ_PRI_USBUSART_TIM);
@@ -126,7 +130,8 @@ static void usbuart_run(void)
     /* forcibly empty fifo if no USB endpoint */
     if (cdcacm_get_config() != 1)
     {
-        buf_rx_out = buf_rx_in;
+        buf_rx_out = buf_rx_in = 0;
+        buf_tx_out = buf_tx_in = 0;
     }
 
     /* if fifo empty, nothing further to do */
@@ -195,11 +200,23 @@ void usbuart_usb_out_cb(usbd_device *dev, uint8_t ep)
     char buf[CDCACM_PACKET_SIZE];
     int len = usbd_ep_read_packet(dev, CDCACM_UART_ENDPOINT, buf, CDCACM_PACKET_SIZE);
 
-    for(int i = 0; i < len; i++)
+    // copy from USB into TX UART FIFO
+    for(int i = 0 ; i < len ; ++i)
     {
-        gpio_toggle(LED_PORT_UART, LED_UART);
-        usart_send_blocking(USBUSART, buf[i]);
+        if (((buf_tx_in + 1) % FIFO_SIZE) != buf_tx_out)
+        {
+            // insert into FIFO 
+            buf_tx[buf_tx_in++] = buf[i];
+            
+            // wrap out pointer 
+            if (buf_tx_in >= FIFO_SIZE)
+            {
+                buf_tx_in = 0;
+            }
+        }
     }
+    
+    gpio_toggle(LED_PORT_UART, LED_UART);
 }
 
 
@@ -216,27 +233,38 @@ void usbuart_usb_in_cb(usbd_device *dev, uint8_t ep)
  */
 void USBUSART_ISR(void)
 {
-    char c = usart_recv(USBUSART);
-
-    /* Turn on LED */
-    gpio_toggle(LED_PORT_UART, LED_UART);
-
-    /* If the next increment of rx_in would put it at the same point
-    * as rx_out, the FIFO is considered full.
-    */
-    if (((buf_rx_in + 1) % FIFO_SIZE) != buf_rx_out)
+    if(USBUSART_SR & USART_SR_RXNE != 0) // Read data register not empty
     {
-        /* insert into FIFO */
-        buf_rx[buf_rx_in++] = c;
+        char c = usart_recv(USBUSART);
 
-        /* wrap out pointer */
-        if (buf_rx_in >= FIFO_SIZE)
+        // Turn on LED 
+        gpio_toggle(LED_PORT_UART, LED_UART);
+
+        // If the next increment of rx_in would put it at the same point as rx_out, the FIFO is considered full. 
+        if (((buf_rx_in + 1) % FIFO_SIZE) != buf_rx_out)
         {
-            buf_rx_in = 0;
-        }
+            // insert into FIFO 
+            buf_rx[buf_rx_in++] = c;
 
-        /* enable deferred processing if we put data in the FIFO */
-        timer_enable_irq(USBUSART_TIM, TIM_DIER_UIE);
+            // wrap out pointer 
+            if (buf_rx_in >= FIFO_SIZE)
+            {
+                buf_rx_in = 0;
+            }
+
+            // enable deferred processing if we put data in the FIFO 
+            timer_enable_irq(USBUSART_TIM, TIM_DIER_UIE);
+        }
+    }
+    
+    if(USBUSART_SR & USART_SR_TXE != 0) // Transmit data register empty
+    {
+        
+    }
+    
+    if(USBUSART_SR & USART_SR_TC != 0) // Transmission complete, release RS-485 PHY
+    {
+        
     }
 }
 

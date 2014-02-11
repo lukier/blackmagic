@@ -77,6 +77,7 @@ extern usbd_device *usbdev;
 
 #define USBUSART                USART1
 #define USBUSART_CR1            USART1_CR1
+#define USBUSART_SR             USART1_SR
 #define USBUSART_IRQ            NVIC_USART1_IRQ
 #define USBUSART_APB_ENR        RCC_APB2ENR
 #define USBUSART_CLK_ENABLE     RCC_APB2ENR_USART1EN
