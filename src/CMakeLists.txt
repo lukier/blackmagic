@@ -17,24 +17,24 @@ add_definitions(-DBUILDDATE=\"2014-02-07\" -DVERSION_SUFFIX=\"CMAKE\")
 
 set(SOURCES
 adiv5.c
-#adiv5_jtagdp.c
+adiv5_jtagdp.c
 adiv5_swdp.c
-#arm7tdmi.c
+arm7tdmi.c
 command.c
 cortexm.c
 crc32.c
 gdb_main.c
 gdb_packet.c
 hex_utils.c
-#jtag_scan.c
-#lmi.c
-#lpc11xx.c
+jtag_scan.c
+lmi.c
+lpc11xx.c
 lpc43xx.c
 main.c
-#sam3x.c
-#stm32f1.c
-#stm32f4.c
-#stm32l1.c
+sam3x.c
+stm32f1.c
+stm32f4.c
+stm32l1.c
 target.c
 )
 
@@ -43,7 +43,7 @@ platforms/stm32/gdb_if.c
 platforms/stm32/jtagtap.c
 platforms/stm32/swdptap.c
 platforms/stm32/cdcacm.c
-#platforms/stm32/traceswo.c
+platforms/stm32/traceswo.c
 platforms/roblink/usbuart.c
 platforms/roblink/platform.c
 )

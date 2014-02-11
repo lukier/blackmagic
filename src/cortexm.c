@@ -369,13 +369,13 @@ cortexm_probe(struct target_s *target)
 #define PROBE(x) \
 	do { if ((x)(target)) return true; else target_check_error(target); } while (0)
 
-    //PROBE(stm32f1_probe);//LUKIER
-	//PROBE(stm32f4_probe);
-	//PROBE(stm32l1_probe);
-	//PROBE(lpc11xx_probe);
+    PROBE(stm32f1_probe);
+	PROBE(stm32f4_probe);
+	PROBE(stm32l1_probe);
+	PROBE(lpc11xx_probe);
 	PROBE(lpc43xx_probe);
-	//PROBE(sam3x_probe);
-	//PROBE(lmi_probe);
+	PROBE(sam3x_probe);
+	PROBE(lmi_probe);
 #undef PROBE
 
 	return true;

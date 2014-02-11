@@ -50,8 +50,8 @@ if(CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_GNUCXX)
     # ---------------------------------------------
     set(CMAKE_C_FLAGS_DEBUG            "-O0 -g -Wall -Wextra ${WARN_SUPPR} ${X86_ARCH} -std=${STD_CC}")
     set(CMAKE_CXX_FLAGS_DEBUG          "-O0 -g -Wall -Wextra ${WARN_SUPPR} ${X86_ARCH} -std=${STD_CXX}")
-    set(CMAKE_C_FLAGS_RELEASE          "-O0 -g -Wall -Wextra ${WARN_SUPPR} ${X86_ARCH} -std=${STD_CC}")
-    set(CMAKE_CXX_FLAGS_RELEASE        "-O0 -g -Wall -Wextra ${WARN_SUPPR} ${X86_ARCH} -std=${STD_CXX}")
+    set(CMAKE_C_FLAGS_RELEASE          "-Os -g -Wall -Wextra ${WARN_SUPPR} ${X86_ARCH} -std=${STD_CC}")
+    set(CMAKE_CXX_FLAGS_RELEASE        "-Os -g -Wall -Wextra ${WARN_SUPPR} ${X86_ARCH} -std=${STD_CXX}")
 endif()
 
 #*******************************************************************************

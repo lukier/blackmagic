@@ -29,7 +29,7 @@
 
 #include <platform.h>
 
-#define USBDEBUG
+//#define USBDEBUG
 
 #define USBUART_TIMER_FREQ_HZ 1000000U /* 1us per tick */
 #define USBUART_RUN_FREQ_HZ 5000U /* 200us (or 100 characters at 2Mbps) */

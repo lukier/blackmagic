@@ -124,7 +124,7 @@ int platform_init(void)
     
     DEBUG("Platform ready\r\n");
 
-// LUKIER	jtag_scan(NULL);
+    jtag_scan(NULL);
 
 	return 0;
 }
