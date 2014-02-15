@@ -29,6 +29,7 @@
 
 #include <platform.h>
 
+#define ENABLE_485FLOW_CONTROL
 //#define USBDEBUG
 
 #define USBUART_TIMER_FREQ_HZ 1000000U /* 1us per tick */
@@ -43,13 +44,6 @@ static uint8_t buf_rx_in;
 /* Fifo out pointer, writes assumed to be atomic, should be only incremented outside RX ISR */
 static uint8_t buf_rx_out;
 
-/* TX Fifo buffer */
-static uint8_t buf_tx[FIFO_SIZE];
-/* Fifo in pointer, writes assumed to be atomic, should be only incremented within RX ISR */
-static uint8_t buf_tx_in;
-/* Fifo out pointer, writes assumed to be atomic, should be only incremented outside RX ISR */
-static uint8_t buf_tx_out;
-
 static void usbuart_run(void);
 
 void usbuart_init(void)
@@ -60,7 +54,7 @@ void usbuart_init(void)
     UART_PIN_SETUP();
 
     /* Setup UART parameters. */
-    usart_set_baudrate(USBUSART, 38400);
+    usart_set_baudrate(USBUSART, 115200);
     usart_set_databits(USBUSART, 8);
     usart_set_stopbits(USBUSART, USART_STOPBITS_1);
     usart_set_mode(USBUSART, USART_MODE_TX_RX);
@@ -71,7 +65,7 @@ void usbuart_init(void)
     usart_enable(USBUSART);
 
     /* Enable interrupts */
-    USBUSART_CR1 |= USART_CR1_RXNEIE | USART_CR1_TXEIE;
+    USBUSART_CR1 |= USART_CR1_RXNEIE;
     nvic_set_priority(USBUSART_IRQ, IRQ_PRI_USBUSART);
     nvic_enable_irq(USBUSART_IRQ);
 #endif
@@ -131,11 +125,11 @@ static void usbuart_run(void)
     if (cdcacm_get_config() != 1)
     {
         buf_rx_out = buf_rx_in = 0;
-        buf_tx_out = buf_tx_in = 0;
     }
 
     /* if fifo empty, nothing further to do */
-    if (buf_rx_in == buf_rx_out) {
+    if (buf_rx_in == buf_rx_out) 
+    {
         /* turn off LED, disable IRQ */
         timer_disable_irq(USBUSART_TIM, TIM_DIER_UIE);
         gpio_toggle(LED_PORT_UART, LED_UART);
@@ -199,22 +193,19 @@ void usbuart_usb_out_cb(usbd_device *dev, uint8_t ep)
 
     char buf[CDCACM_PACKET_SIZE];
     int len = usbd_ep_read_packet(dev, CDCACM_UART_ENDPOINT, buf, CDCACM_PACKET_SIZE);
-
-    // copy from USB into TX UART FIFO
-    for(int i = 0 ; i < len ; ++i)
+    
+#ifdef ENABLE_485FLOW_CONTROL
+    platform_485transmit(true);
+#endif
+    
+    for(int i = 0; i < len; i++)
     {
-        if (((buf_tx_in + 1) % FIFO_SIZE) != buf_tx_out)
-        {
-            // insert into FIFO 
-            buf_tx[buf_tx_in++] = buf[i];
-            
-            // wrap out pointer 
-            if (buf_tx_in >= FIFO_SIZE)
-            {
-                buf_tx_in = 0;
-            }
-        }
+        usart_send_blocking(USBUSART, buf[i]);
     }
+
+#ifdef ENABLE_485FLOW_CONTROL
+    USBUSART_CR1 |= USART_CR1_TCIE; // enable transmission complete
+#endif
     
     gpio_toggle(LED_PORT_UART, LED_UART);
 }
@@ -233,7 +224,7 @@ void usbuart_usb_in_cb(usbd_device *dev, uint8_t ep)
  */
 void USBUSART_ISR(void)
 {
-    if(USBUSART_SR & USART_SR_RXNE != 0) // Read data register not empty
+    if((USBUSART_SR & USART_SR_RXNE) != 0) // Read data register not empty
     {
         char c = usart_recv(USBUSART);
 
@@ -256,16 +247,14 @@ void USBUSART_ISR(void)
             timer_enable_irq(USBUSART_TIM, TIM_DIER_UIE);
         }
     }
-    
-    if(USBUSART_SR & USART_SR_TXE != 0) // Transmit data register empty
-    {
-        
-    }
-    
+#ifdef ENABLE_485FLOW_CONTROL
     if(USBUSART_SR & USART_SR_TC != 0) // Transmission complete, release RS-485 PHY
     {
-        
+        platform_485transmit(false);
+        USBUSART_SR &= ~USART_SR_TC; // write zero?
+        USBUSART_CR1 &= ~USART_CR1_TCIE; // disable transmission complete
     }
+#endif
 }
 
 void USBUSART_TIM_ISR(void)

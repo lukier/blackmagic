@@ -75,6 +75,13 @@ extern usbd_device *usbdev;
 #define IRQ_PRI_USBUSART_TIM    (3 << 4)
 #define IRQ_PRI_TRACE           (0 << 4)
 
+#define RS485_CONTROL_PORT      GPIOB
+#define RS485_CONTROL_PIN       GPIO14
+#define RS485_INTERRUPT_PORT    GPIOB
+#define RS485_INTERRUPT_PIN     GPIO15
+#define AUXPOWER_PORT           GPIOB
+#define AUXPOWER_PIN            GPIO2
+
 #define USBUSART                USART1
 #define USBUSART_CR1            USART1_CR1
 #define USBUSART_SR             USART1_SR
@@ -173,3 +180,6 @@ static inline uint16_t _gpio_get(uint32_t gpioport, uint16_t gpios)
 void assert_boot_pin(void);
 void setup_vbus_irq(void);
 void platform_srst_set_val(bool assert);
+void platform_aux5v(bool enable);
+bool platform_get_aux5v(void);
+void platform_485transmit(bool enable);

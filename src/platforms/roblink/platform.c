@@ -112,6 +112,14 @@ int platform_init(void)
     // TGT_PWR sensing
     gpio_clear(GPIOB, GPIO0);
 	gpio_set_mode(GPIOB, GPIO_MODE_INPUT, GPIO_CNF_INPUT_PULL_UPDOWN, GPIO0);
+    
+    // RS485 transmitter control
+    gpio_set_mode(RS485_CONTROL_PORT, GPIO_MODE_OUTPUT_2_MHZ, GPIO_CNF_OUTPUT_PUSHPULL, RS485_CONTROL_PIN);
+    gpio_clear(RS485_CONTROL_PORT, RS485_CONTROL_PIN);
+    
+    // AUX 5V power output control
+    gpio_set_mode(AUXPOWER_PORT, GPIO_MODE_OUTPUT_2_MHZ, GPIO_CNF_OUTPUT_PUSHPULL, AUXPOWER_PIN);
+    gpio_set(AUXPOWER_PORT, AUXPOWER_PIN); // off
 	
 	/* Drive pull-up high if VBUS connected */
     gpio_set(USB_PU_PORT, USB_PU_PIN);
@@ -242,4 +250,40 @@ void assert_boot_pin(void)
 void setup_vbus_irq(void)
 {
 
+}
+
+bool platform_get_aux5v(void)
+{
+    if(gpio_get(AUXPOWER_PORT, AUXPOWER_PIN) == 0)
+    {
+        return true;
+    }
+    else
+    {
+        return false;
+    }
+}
+
+void platform_aux5v(bool enable)
+{
+    if(enable == true)
+    {
+        gpio_clear(AUXPOWER_PORT, AUXPOWER_PIN);
+    }
+    else
+    {
+        gpio_set(AUXPOWER_PORT, AUXPOWER_PIN);
+    }
+}
+
+void platform_485transmit(bool enable)
+{
+    if(enable == true)
+    {
+        gpio_set(RS485_CONTROL_PORT, RS485_CONTROL_PIN);
+    }
+    else
+    {
+        gpio_clear(RS485_CONTROL_PORT, RS485_CONTROL_PIN);
+    }
 }

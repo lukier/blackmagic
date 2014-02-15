@@ -47,6 +47,7 @@ static bool cmd_swdp_scan(void);
 static bool cmd_targets(target *t);
 static bool cmd_morse(void);
 static bool cmd_connect_srst(target *t, int argc, const char **argv);
+static bool cmd_aux_pwr(target *t, int argc, const char **argv);
 #ifdef PLATFORM_HAS_TRACESWO
 static bool cmd_traceswo(void);
 #endif
@@ -59,6 +60,7 @@ const struct command_s cmd_list[] = {
 	{"targets", (cmd_handler)cmd_targets, "Display list of available targets" },
 	{"morse", (cmd_handler)cmd_morse, "Display morse error message" },
 	{"connect_srst", (cmd_handler)cmd_connect_srst, "Configure connect under SRST: (enable|disable)" },
+	{"aux_pwr", (cmd_handler)cmd_aux_pwr, "Enable/Disable AUX 5V power line" },
 #ifdef PLATFORM_HAS_TRACESWO
 	{"traceswo", (cmd_handler)cmd_traceswo, "Start trace capture" },
 #endif
@@ -221,6 +223,25 @@ static bool cmd_connect_srst(target *t, int argc, const char **argv)
 	else
 		connect_assert_srst = !strcmp(argv[1], "enable");
 	return true;
+}
+
+bool cmd_aux_pwr(target *t, int argc, const char **argv)
+{
+    (void)t;
+    
+    bool power_state = platform_get_aux5v();
+    
+    if (argc == 1)
+    {
+        gdb_outf("AUX 5V bus: %s\n", power_state ? "enabled" : "disabled");
+    }
+    else
+    {
+        power_state = !strcmp(argv[1], "enable");
+        platform_aux5v(power_state);
+    }
+    
+    return true;
 }
 
 #ifdef PLATFORM_HAS_TRACESWO
