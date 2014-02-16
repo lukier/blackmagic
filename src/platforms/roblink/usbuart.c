@@ -204,7 +204,14 @@ void usbuart_usb_out_cb(usbd_device *dev, uint8_t ep)
     }
 
 #ifdef ENABLE_485FLOW_CONTROL
-    USBUSART_CR1 |= USART_CR1_TCIE; // enable transmission complete
+    while(1)
+    {
+        if((USBUSART_SR & USART_SR_TC) != 0) // Transmission complete, release RS-485 PHY
+        {
+            platform_485transmit(false);
+            break;
+        }
+    }
 #endif
     
     gpio_toggle(LED_PORT_UART, LED_UART);
@@ -247,14 +254,6 @@ void USBUSART_ISR(void)
             timer_enable_irq(USBUSART_TIM, TIM_DIER_UIE);
         }
     }
-#ifdef ENABLE_485FLOW_CONTROL
-    if(USBUSART_SR & USART_SR_TC != 0) // Transmission complete, release RS-485 PHY
-    {
-        platform_485transmit(false);
-        USBUSART_SR &= ~USART_SR_TC; // write zero?
-        USBUSART_CR1 &= ~USART_CR1_TCIE; // disable transmission complete
-    }
-#endif
 }
 
 void USBUSART_TIM_ISR(void)
