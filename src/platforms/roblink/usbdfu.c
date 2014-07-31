@@ -26,6 +26,9 @@
 #include "usbdfu.h"
 #include "platform.h"
 
+// main stack memory
+uint8_t _main_stack[MAIN_STACK_SIZE] __attribute__ ((section(".stack.main")));
+
 uint32_t app_address = 0x08002000;
 
 void dfu_detach(void)
@@ -56,6 +59,8 @@ int main(void)
     systick_counter_enable();
 
     gpio_set_mode(GPIOB, GPIO_MODE_OUTPUT_2_MHZ, GPIO_CNF_OUTPUT_PUSHPULL, GPIO5); // led config?
+    gpio_set_mode(GPIOB, GPIO_MODE_OUTPUT_2_MHZ, GPIO_CNF_OUTPUT_PUSHPULL, GPIO4); // led config?
+    gpio_set_mode(GPIOB, GPIO_MODE_OUTPUT_2_MHZ, GPIO_CNF_OUTPUT_PUSHPULL, GPIO3); // led config?
 
     dfu_init(&stm32f103_usb_driver, DFU_MODE);
 
@@ -68,5 +73,7 @@ int main(void)
 void sys_tick_handler(void)
 {
     gpio_toggle(GPIOB, GPIO5); /* LED2 on/off */
+    gpio_toggle(GPIOB, GPIO4); /* LED2 on/off */
+    gpio_toggle(GPIOB, GPIO3); /* LED2 on/off */
 }
 

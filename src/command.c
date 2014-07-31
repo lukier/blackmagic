@@ -235,25 +235,6 @@ static bool cmd_target_power(target *t, int argc, const char **argv)
 	return true;
 }
 
-bool cmd_aux_pwr(target *t, int argc, const char **argv)
-{
-    (void)t;
-    
-    bool power_state = platform_get_aux5v();
-    
-    if (argc == 1)
-    {
-        gdb_outf("AUX 5V bus: %s\n", power_state ? "enabled" : "disabled");
-    }
-    else
-    {
-        power_state = !strcmp(argv[1], "enable");
-        platform_aux5v(power_state);
-    }
-    
-    return true;
-}
-
 #ifdef PLATFORM_HAS_TRACESWO
 static bool cmd_traceswo(void)
 {

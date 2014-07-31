@@ -159,7 +159,7 @@ static int stm32l1_flash_write(struct target_s *target, uint32_t dest,
 	if(dest & 3) {
 		uint32_t data = 0;
 		uint32_t wlen = 4 - (dest & 3);
-		if(wlen > len)
+		if(wlen > (uint32_t)len)
 			wlen = len;
 
 		memcpy((uint8_t *)&data + (dest & 3), src, wlen);
@@ -172,7 +172,7 @@ static int stm32l1_flash_write(struct target_s *target, uint32_t dest,
 	/* Handle non half-page-aligned start */
 	if(dest & 127 && len >= 4) {
 		uint32_t xlen = 128 - (dest & 127);
-		if(xlen > len)
+        if(xlen > (uint32_t)len)
 			xlen = len & ~3;
 
 		target_mem_write_words(target, dest, (uint32_t*)src, xlen);

@@ -1,7 +1,10 @@
 #ifndef __PLATFORM_H
 #define __PLATFORM_H
 
-#include <libopencm3/stm32/f1/gpio.h>
+#include <stdint.h>
+#include <libopencm3/cm3/common.h>
+#include <libopencm3/stm32/memorymap.h>
+#include <libopencm3/stm32/gpio.h>
 #include <libopencm3/usb/usbd.h>
 
 #include <setjmp.h>
@@ -42,7 +45,7 @@ extern usbd_device *usbdev;
 #define TRST_PORT               GPIOA
 #define TRST_PIN                GPIO1
 #define PWR_BR_PORT             GPIOB
-#define PWR_BR_PIN              GPIO1
+#define PWR_BR_PIN              GPIO0
 #define SRST_PORT               GPIOA
 #define SRST_PIN                GPIO2
 
@@ -79,19 +82,17 @@ extern usbd_device *usbdev;
 #define RS485_CONTROL_PIN       GPIO14
 #define RS485_INTERRUPT_PORT    GPIOB
 #define RS485_INTERRUPT_PIN     GPIO15
-#define AUXPOWER_PORT           GPIOB
-#define AUXPOWER_PIN            GPIO2
 
-#define USBUSART                USART1
-#define USBUSART_CR1            USART1_CR1
-#define USBUSART_SR             USART1_SR
-#define USBUSART_IRQ            NVIC_USART1_IRQ
-#define USBUSART_APB_ENR        RCC_APB2ENR
-#define USBUSART_CLK_ENABLE     RCC_APB2ENR_USART1EN
-#define USBUSART_PORT           GPIOA
+#define USBUSART                USART3
+#define USBUSART_CR1            USART3_CR1
+#define USBUSART_SR             USART3_SR
+#define USBUSART_IRQ            NVIC_USART3_IRQ
+#define USBUSART_APB_ENR        RCC_APB1ENR
+#define USBUSART_CLK_ENABLE     RCC_APB1ENR_USART3EN
+#define USBUSART_PORT           GPIOB
 #define USBUSART_PORT_APB_ENR   RCC_APB2ENR
 #define USBUSART_PORT_ENABLE    RCC_APB2ENR_IOPAEN
-#define USBUSART_TX_PIN         GPIO9
+#define USBUSART_TX_PIN         GPIO10
 #define USBUSART_ISR            usart1_isr
 #define USBUSART_TIM            TIM4
 #define USBUSART_TIM_CLK_EN()   rcc_peripheral_enable_clock(&RCC_APB1ENR, RCC_APB1ENR_TIM4EN)
@@ -180,6 +181,7 @@ static inline uint16_t _gpio_get(uint32_t gpioport, uint16_t gpios)
 void assert_boot_pin(void);
 void setup_vbus_irq(void);
 void platform_srst_set_val(bool assert);
-void platform_aux5v(bool enable);
 bool platform_get_aux5v(void);
 void platform_485transmit(bool enable);
+bool platform_target_get_power(void);
+void platform_target_set_power(bool power);

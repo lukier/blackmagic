@@ -118,7 +118,6 @@ static bool lpc43xx_cmd_erase(target *target, int argc, const char *argv[]);
 static bool lpc43xx_cmd_reset(target *target, int argc, const char *argv[]);
 static bool lpc43xx_cmd_mkboot(target *target, int argc, const char *argv[]);
 
-static void lpc43xx_reset(struct target_s *target);
 static int lpc43xx_flash_init(struct target_s *target);
 static void lpc43xx_iap_call(struct target_s *target, struct flash_param *param,
                              unsigned param_len);
@@ -230,7 +229,6 @@ bool lpc43xx_probe(struct target_s *target)
 			target->driver = "LPC43xx Cortex-M4";
                     /* LPC4330 */
                     target->xml_mem_map = lpc4330_xml_memory_map;
-                    target->reset = lpc43xx_reset; // override CortexM reset
                     target->flash_erase = lpc43xx_spifi_erase;// TODO FIXME implement SPIFI
                     target->flash_write = lpc43xx_spifi_write;// TODO FIXME implement SPIFI
                     target_add_commands(target, lpc43xx_cmd_list, "LPC43xx");
@@ -260,14 +258,8 @@ static bool lpc43xx_cmd_reset(target *target, int argc, const char *argv[])
     
     /* System reset on target */
     target_mem_write_words(target, AIRCR, &reset_val, sizeof(reset_val));
-}
-
-/* Reset all major systems _except_ debug */
-static bool lpc43xx_cmd_reset(target *target, int __attribute__((unused)) argc, const char __attribute__((unused)) *argv[])
-{
-	lpc43xx_reset(target);
-
-	return true;
+    
+    return true;
 }
 
 static bool lpc43xx_cmd_erase(target *target, int argc, const char *argv[])

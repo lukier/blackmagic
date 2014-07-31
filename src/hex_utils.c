@@ -28,7 +28,7 @@
 
 static char hexdigits[] = "0123456789abcdef";
 
-char * hexify(char *hex, const unsigned char *buf, int size)
+char * hexify(char *hex, const char *buf, int size)
 {
 	char *tmp = hex;
 
@@ -51,7 +51,7 @@ static uint8_t unhex_digit(char hex)
 	return tmp;
 }
 
-char * unhexify(unsigned char *buf, const char *hex, int size)
+char * unhexify(char *buf, const char *hex, int size)
 {
 	while(size--) {
 		*buf = unhex_digit(*hex++) << 4;

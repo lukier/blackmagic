@@ -31,6 +31,7 @@ lmi.c
 lpc11xx.c
 lpc43xx.c
 main.c
+nrf51.c
 sam3x.c
 stm32f1.c
 stm32f4.c

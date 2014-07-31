@@ -22,17 +22,17 @@
  * implementation.
  */
 
-#include <libopencm3/stm32/f1/rcc.h>
+#include <platform.h>
+#include <libopencm3/stm32/rcc.h>
 #include <libopencm3/cm3/systick.h>
 #include <libopencm3/cm3/scb.h>
 #include <libopencm3/cm3/nvic.h>
 #include <libopencm3/stm32/exti.h>
 #include <libopencm3/stm32/usart.h>
 #include <libopencm3/usb/usbd.h>
-#include <libopencm3/stm32/f1/adc.h>
+#include <libopencm3/stm32/adc.h>
 
-#include "platform.h"
-#include "jtag_scan.h"
+#include <jtag_scan.h>
 #include <usbuart.h>
 
 #include <ctype.h>
@@ -57,6 +57,20 @@ int _write(int file, void* ptr, int len)
     return len;
 }
 #endif
+
+bool platform_target_get_power(void) 
+{
+    return gpio_get(PWR_BR_PORT, PWR_BR_PIN);
+}
+
+void platform_target_set_power(bool power)
+{
+}
+
+int platform_hwversion(void)
+{
+    return 0;
+}
 
 int platform_init(void)
 {
@@ -116,10 +130,6 @@ int platform_init(void)
     // RS485 transmitter control
     gpio_set_mode(RS485_CONTROL_PORT, GPIO_MODE_OUTPUT_2_MHZ, GPIO_CNF_OUTPUT_PUSHPULL, RS485_CONTROL_PIN);
     gpio_clear(RS485_CONTROL_PORT, RS485_CONTROL_PIN);
-    
-    // AUX 5V power output control
-    gpio_set_mode(AUXPOWER_PORT, GPIO_MODE_OUTPUT_2_MHZ, GPIO_CNF_OUTPUT_PUSHPULL, AUXPOWER_PIN);
-    gpio_set(AUXPOWER_PORT, AUXPOWER_PIN); // off
 	
 	/* Drive pull-up high if VBUS connected */
     gpio_set(USB_PU_PORT, USB_PU_PIN);
@@ -225,8 +235,8 @@ static void morse_update(void)
 		}
 		if((c >= 'A') && (c <= 'Z')) {
 			c -= 'A';
-			code = morse_letter[c].code;
-			bits = morse_letter[c].bits;
+			code = morse_letter[(int)c].code;
+            bits = morse_letter[(int)c].bits;
 		} else {
 			code = 0; bits = 4;
 		}
@@ -237,43 +247,18 @@ static void morse_update(void)
 
 const char *platform_target_voltage(void)
 {
-    return gpio_get(GPIOB, GPIO0) ? "OK" : "ABSENT!";
+    return gpio_get(PWR_BR_PORT, PWR_BR_PIN) ? "OK" : "ABSENT!";
 }
 
 void assert_boot_pin(void)
 {
-	gpio_set_mode(GPIOB, GPIO_MODE_OUTPUT_2_MHZ,
-			GPIO_CNF_OUTPUT_PUSHPULL, GPIO12);
+	gpio_set_mode(GPIOB, GPIO_MODE_OUTPUT_2_MHZ, GPIO_CNF_OUTPUT_PUSHPULL, GPIO12);
 	gpio_clear(GPIOB, GPIO12);
 }
 
 void setup_vbus_irq(void)
 {
 
-}
-
-bool platform_get_aux5v(void)
-{
-    if(gpio_get(AUXPOWER_PORT, AUXPOWER_PIN) == 0)
-    {
-        return true;
-    }
-    else
-    {
-        return false;
-    }
-}
-
-void platform_aux5v(bool enable)
-{
-    if(enable == true)
-    {
-        gpio_clear(AUXPOWER_PORT, AUXPOWER_PIN);
-    }
-    else
-    {
-        gpio_set(AUXPOWER_PORT, AUXPOWER_PIN);
-    }
 }
 
 void platform_485transmit(bool enable)

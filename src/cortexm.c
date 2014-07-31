@@ -888,7 +888,7 @@ static bool cortexm_vector_catch(target *t, int argc, char *argv[])
 		gdb_out("usage: monitor vector_catch (enable|disable) "
 			"(hard|int|bus|stat|chk|nocp|mm|reset)\n");
 	} else {
-		for (j = 0; j < argc; j++)
+		for (j = 0; j < (unsigned)argc; j++)
 			for (i = 0; i < sizeof(vectors) / sizeof(char*); i++) {
 				if (vectors[i] && !strcmp(vectors[i], argv[j]))
 					tmp |= 1 << i;
@@ -978,7 +978,7 @@ static int cortexm_hostio_request(target *t)
 		uint32_t pflag = flags[params[1] >> 1];
 		char filename[4];
 
-		target_mem_read_bytes(t, filename, params[0], sizeof(filename));
+		target_mem_read_bytes(t, (uint8_t*)filename, params[0], sizeof(filename));
 		/* handle requests for console i/o */
 		if (!strcmp(filename, ":tt")) {
 			if (pflag == FILEIO_O_RDONLY)

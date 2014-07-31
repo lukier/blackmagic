@@ -52,7 +52,7 @@
 #define ERROR_IF_NO_TARGET()	\
 	if(!cur_target) { gdb_putpacketz("EFF"); break; }
 
-static unsigned char pbuf[BUF_SIZE];
+static char pbuf[BUF_SIZE];
 
 static target *cur_target;
 static target *last_target;
@@ -98,7 +98,7 @@ gdb_main(void)
 			ERROR_IF_NO_TARGET();
 			sscanf(pbuf, "m%08lx,%08lx", &addr, &len);
             DEBUG("m packet: addr = %08lX, len = %08lX\r\n", addr, len);
-			uint8_t mem[len];
+			char mem[len];
 			if(((addr & 3) == 0) && ((len & 3) == 0))
 				target_mem_read_words(cur_target, (void*)mem, addr, len);
 			else
@@ -111,7 +111,7 @@ gdb_main(void)
 			}
 		case 'G': {	/* 'G XX': Write general registers */
 			ERROR_IF_NO_TARGET();
-			uint8_t arm_regs[cur_target->regs_size];
+			char arm_regs[cur_target->regs_size];
 			unhexify(arm_regs, &pbuf[1], cur_target->regs_size);
 			target_regs_write(cur_target, arm_regs);
 			gdb_putpacketz("OK");
@@ -123,7 +123,7 @@ gdb_main(void)
 			ERROR_IF_NO_TARGET();
 			sscanf(pbuf, "M%08lx,%08lx:%n", &addr, &len, &hex);
             DEBUG("M packet: addr = %08lX, len = %08lX\r\n", addr, len);
-			uint8_t mem[len];
+			char mem[len];
 			unhexify(mem, pbuf + hex, len);
 			if(((addr & 3) == 0) && ((len & 3) == 0))
 				target_mem_write_words(cur_target, addr, (void*)mem, len);
@@ -294,7 +294,7 @@ handle_q_string_reply(const char *str, const char *param)
 		return;
 	}
 	if (addr < strlen (str)) {
-		uint8_t reply[len+2];
+		char reply[len+2];
 		reply[0] = 'm';
 		strncpy (reply + 1, &str[addr], len);
 		if(len > strlen(&str[addr]))
@@ -312,7 +312,7 @@ handle_q_packet(char *packet, int len)
 	uint32_t addr, alen;
 
 	if(!strncmp(packet, "qRcmd,", 6)) {
-		unsigned char *data;
+		char *data;
 		int datalen;
 
 		/* calculate size and allocate buffer for command */
