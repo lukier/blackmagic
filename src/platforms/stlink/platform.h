@@ -24,6 +24,10 @@
 #ifndef __PLATFORM_H
 #define __PLATFORM_H
 
+#include <stdint.h>
+#include <libopencm3/cm3/common.h>
+#include <libopencm3/stm32/f1/memorymap.h>
+
 #include <libopencm3/stm32/f1/gpio.h>
 #include <libopencm3/usb/usbd.h>
 
@@ -123,13 +127,12 @@ extern usbd_device *usbdev;
 #define USBUSART USART2
 #define USBUSART_CR1 USART2_CR1
 #define USBUSART_IRQ NVIC_USART2_IRQ
-#define USBUSART_APB_ENR RCC_APB1ENR
-#define USBUSART_CLK_ENABLE  RCC_APB1ENR_USART2EN
+#define USBUSART_CLK RCC_USART2
 #define USBUSART_PORT GPIOA
 #define USBUSART_TX_PIN GPIO2
 #define USBUSART_ISR usart2_isr
 #define USBUSART_TIM TIM4
-#define USBUSART_TIM_CLK_EN() rcc_peripheral_enable_clock(&RCC_APB1ENR, RCC_APB1ENR_TIM4EN)
+#define USBUSART_TIM_CLK_EN() rcc_periph_clock_enable(RCC_TIM4)
 #define USBUSART_TIM_IRQ NVIC_TIM4_IRQ
 #define USBUSART_TIM_ISR tim4_isr
 

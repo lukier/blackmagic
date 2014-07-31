@@ -22,6 +22,8 @@
  * implementation.
  */
 
+#include "platform.h"
+
 #include <libopencm3/stm32/f1/rcc.h>
 #include <libopencm3/cm3/systick.h>
 #include <libopencm3/cm3/scb.h>
@@ -31,7 +33,6 @@
 #include <libopencm3/usb/usbd.h>
 #include <libopencm3/stm32/f1/adc.h>
 
-#include "platform.h"
 #include "jtag_scan.h"
 #include <usbuart.h>
 
@@ -68,11 +69,11 @@ int platform_init(void)
 	rcc_clock_setup_in_hse_8mhz_out_72mhz();
 
 	/* Enable peripherals */
-	rcc_peripheral_enable_clock(&RCC_APB1ENR, RCC_APB1ENR_USBEN);
-	rcc_peripheral_enable_clock(&RCC_APB2ENR, RCC_APB2ENR_IOPAEN);
-	rcc_peripheral_enable_clock(&RCC_APB2ENR, RCC_APB2ENR_IOPBEN);
-	rcc_peripheral_enable_clock(&RCC_APB2ENR, RCC_APB2ENR_AFIOEN);
-	rcc_peripheral_enable_clock(&RCC_AHBENR, RCC_AHBENR_CRCEN);
+	rcc_periph_clock_enable(RCC_USB);
+	rcc_periph_clock_enable(RCC_GPIOA);
+	rcc_periph_clock_enable(RCC_GPIOB);
+	rcc_periph_clock_enable(RCC_AFIO);
+	rcc_periph_clock_enable(RCC_CRC);
 
 	/* Setup GPIO ports */
 	gpio_clear(USB_PU_PORT, USB_PU_PIN);
@@ -139,6 +140,11 @@ int platform_init(void)
 	cdcacm_init();
 	usbuart_init();
 
+	// Set recovery point
+	if (setjmp(fatal_error_jmpbuf)) {
+		return 0; // Do nothing on failure
+	}
+
 	jtag_scan(NULL);
 
 	return 0;
@@ -152,7 +158,18 @@ void platform_srst_set_val(bool assert)
 		gpio_set_val(SRST_PORT, SRST_PIN, !assert);
 	}
 }
-
+bool platform_target_get_power(void) {
+	if (platform_hwversion() > 0) {
+		return gpio_get(PWR_BR_PORT, PWR_BR_PIN);
+  	}
+	return 1; // 1 = Unpowered
+}
+void platform_target_set_power(bool power)
+{
+	if (platform_hwversion() > 0) {
+		gpio_set_val(PWR_BR_PORT, PWR_BR_PIN, !power);
+	}
+}
 void platform_delay(uint32_t delay)
 {
 	timeout_counter = delay;
@@ -248,7 +265,7 @@ static void morse_update(void)
 
 static void adc_init(void)
 {
-	rcc_peripheral_enable_clock(&RCC_APB2ENR, RCC_APB2ENR_ADC1EN);
+	rcc_periph_clock_enable(RCC_ADC1);
 
 	gpio_set_mode(GPIOB, GPIO_MODE_INPUT,
 			GPIO_CNF_INPUT_ANALOG, GPIO0);

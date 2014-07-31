@@ -24,6 +24,10 @@
 #ifndef __PLATFORM_H
 #define __PLATFORM_H
 
+#include <stdint.h>
+#include <libopencm3/cm3/common.h>
+#include <libopencm3/stm32/f1/memorymap.h>
+
 #include <libopencm3/stm32/f1/gpio.h>
 #include <libopencm3/usb/usbd.h>
 
@@ -137,18 +141,17 @@ extern usbd_device *usbdev;
 #define USBUSART USART1
 #define USBUSART_CR1 USART1_CR1
 #define USBUSART_IRQ NVIC_USART1_IRQ
-#define USBUSART_APB_ENR RCC_APB2ENR
-#define USBUSART_CLK_ENABLE  RCC_APB2ENR_USART1EN
+#define USBUSART_CLK RCC_USART1
 #define USBUSART_PORT GPIOA
 #define USBUSART_TX_PIN GPIO9
 #define USBUSART_ISR usart1_isr
 #define USBUSART_TIM TIM4
-#define USBUSART_TIM_CLK_EN() rcc_peripheral_enable_clock(&RCC_APB1ENR, RCC_APB1ENR_TIM4EN)
+#define USBUSART_TIM_CLK_EN() rcc_periph_clock_enable(RCC_TIM4)
 #define USBUSART_TIM_IRQ NVIC_TIM4_IRQ
 #define USBUSART_TIM_ISR tim4_isr
 
 #define TRACE_TIM TIM3
-#define TRACE_TIM_CLK_EN() rcc_peripheral_enable_clock(&RCC_APB1ENR, RCC_APB1ENR_TIM3EN)
+#define TRACE_TIM_CLK_EN() rcc_periph_clock_enable(RCC_TIM3)
 #define TRACE_IRQ   NVIC_TIM3_IRQ
 #define TRACE_ISR   tim3_isr
 
@@ -228,3 +231,5 @@ static inline uint16_t _gpio_get(uint32_t gpioport, uint16_t gpios)
 void assert_boot_pin(void);
 void setup_vbus_irq(void);
 void platform_srst_set_val(bool assert);
+bool platform_target_get_power(void);
+void platform_target_set_power(bool power);
