@@ -30,7 +30,6 @@
 #include <platform.h>
 
 #define ENABLE_485FLOW_CONTROL
-//#define USBDEBUG
 
 #define USBUART_TIMER_FREQ_HZ 1000000U /* 1us per tick */
 #define USBUART_RUN_FREQ_HZ 5000U /* 200us (or 100 characters at 2Mbps) */
@@ -48,7 +47,6 @@ static void usbuart_run(void);
 
 void usbuart_init(void)
 {
-#ifndef USBDEBUG
     rcc_peripheral_enable_clock(&USBUSART_APB_ENR, USBUSART_CLK_ENABLE);
 
     UART_PIN_SETUP();
@@ -63,12 +61,12 @@ void usbuart_init(void)
 
     /* Finally enable the USART. */
     usart_enable(USBUSART);
-
+#ifndef USBDEBUG
     /* Enable interrupts */
     USBUSART_CR1 |= USART_CR1_RXNEIE;
     nvic_set_priority(USBUSART_IRQ, IRQ_PRI_USBUSART);
     nvic_enable_irq(USBUSART_IRQ);
-#endif
+   
     /* Setup timer for running deferred FIFO processing */
     USBUSART_TIM_CLK_EN();
     timer_reset(USBUSART_TIM);
@@ -82,6 +80,7 @@ void usbuart_init(void)
 
     /* turn the timer on */
     timer_enable_counter(USBUSART_TIM);
+#endif
 }
 
 int _write(int file, void* ptr, int len)
@@ -91,21 +90,8 @@ int _write(int file, void* ptr, int len)
     
     for(int i = 0 ; i < len ; ++i)
     {
-        if (((buf_rx_in + 1) % FIFO_SIZE) != buf_rx_out)
-        {
-            /* insert into FIFO */
-            buf_rx[buf_rx_in++] = uptr[i];
-            
-            /* wrap out pointer */
-            if (buf_rx_in >= FIFO_SIZE)
-            {
-                buf_rx_in = 0;
-            }
-        }
+        usart_send_blocking(USBUSART, uptr[i]);
     }
-    
-    /* enable deferred processing if we put data in the FIFO */
-    timer_enable_irq(USBUSART_TIM, TIM_DIER_UIE);
     
     return len;
 #else

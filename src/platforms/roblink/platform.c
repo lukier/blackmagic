@@ -247,7 +247,7 @@ static void morse_update(void)
 
 const char *platform_target_voltage(void)
 {
-    return gpio_get(PWR_BR_PORT, PWR_BR_PIN) ? "OK" : "ABSENT!";
+    return gpio_get(PWR_BR_PORT, PWR_BR_PIN) != 0 ? "OK" : "ABSENT!";
 }
 
 void assert_boot_pin(void)

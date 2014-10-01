@@ -104,8 +104,14 @@ extern usbd_device *usbdev;
 #define TRACE_IRQ               NVIC_TIM3_IRQ
 #define TRACE_ISR               tim3_isr
 
-//#define DEBUG(...) printf(__VA_ARGS__)
-#define DEBUG(...)
+//#define USBDEBUG
+
+#ifdef USBDEBUG
+#include <stdio.h>
+    #define DEBUG(...) printf(__VA_ARGS__)
+#else // USBDEBUG
+    #define DEBUG(...)
+#endif // USBDEBUG
 
 extern uint8_t running_status;
 extern volatile uint32_t timeout_counter;
