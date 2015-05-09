@@ -24,26 +24,15 @@
  * Originally written for GDB 6.8, updated and tested with GDB 7.2.
  */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
-#include <assert.h>
-
-#include "platform.h"
-
 #include "general.h"
 #include "hex_utils.h"
 #include "gdb_if.h"
 #include "gdb_packet.h"
 #include "gdb_main.h"
-
 #include "jtagtap.h"
 #include "jtag_scan.h"
 #include "adiv5.h"
-
 #include "target.h"
-
 #include "command.h"
 #include "crc32.h"
 
@@ -88,21 +77,19 @@ gdb_main(void)
 		/* Implementation of these is mandatory! */
 		case 'g': { /* 'g': Read general registers */
 			ERROR_IF_NO_TARGET();
-			uint8_t arm_regs[cur_target->regs_size];
+			uint8_t arm_regs[target_regs_size(cur_target)];
 			target_regs_read(cur_target, arm_regs);
-			gdb_putpacket(hexify(pbuf, (void*)arm_regs, cur_target->regs_size), cur_target->regs_size * 2);
+			gdb_putpacket(hexify(pbuf, arm_regs, sizeof(arm_regs)),
+			              sizeof(arm_regs) * 2);
 			break;
 			}
 		case 'm': {	/* 'm addr,len': Read len bytes from addr */
 			uint32_t addr, len;
 			ERROR_IF_NO_TARGET();
-			sscanf(pbuf, "m%08lx,%08lx", &addr, &len);
-            DEBUG("m packet: addr = %08lX, len = %08lX\r\n", addr, len);
+			sscanf(pbuf, "m%" SCNx32 ",%" SCNx32, &addr, &len);
+			DEBUG("m packet: addr = %" PRIx32 ", len = %" PRIx32 "\n", addr, len);
 			char mem[len];
-			if(((addr & 3) == 0) && ((len & 3) == 0))
-				target_mem_read_words(cur_target, (void*)mem, addr, len);
-			else
-				target_mem_read_bytes(cur_target, (void*)mem, addr, len);
+			target_mem_read(cur_target, mem, addr, len);
 			if(target_check_error(cur_target))
 				gdb_putpacketz("E01");
 			else
@@ -111,8 +98,8 @@ gdb_main(void)
 			}
 		case 'G': {	/* 'G XX': Write general registers */
 			ERROR_IF_NO_TARGET();
-			char arm_regs[cur_target->regs_size];
-			unhexify(arm_regs, &pbuf[1], cur_target->regs_size);
+			uint8_t arm_regs[target_regs_size(cur_target)];
+			unhexify(arm_regs, &pbuf[1], sizeof(arm_regs));
 			target_regs_write(cur_target, arm_regs);
 			gdb_putpacketz("OK");
 			break;
@@ -121,14 +108,11 @@ gdb_main(void)
 			uint32_t addr, len;
 			int hex;
 			ERROR_IF_NO_TARGET();
-			sscanf(pbuf, "M%08lx,%08lx:%n", &addr, &len, &hex);
-            DEBUG("M packet: addr = %08lX, len = %08lX\r\n", addr, len);
+			sscanf(pbuf, "M%" SCNx32 ",%" SCNx32 ":%n", &addr, &len, &hex);
+			DEBUG("M packet: addr = %" PRIx32 ", len = %" PRIx32 "\n", addr, len);
 			char mem[len];
 			unhexify(mem, pbuf + hex, len);
-			if(((addr & 3) == 0) && ((len & 3) == 0))
-				target_mem_write_words(cur_target, addr, (void*)mem, len);
-			else
-				target_mem_write_bytes(cur_target, addr, (void*)mem, len);
+			target_mem_write(cur_target, addr, mem, len);
 			if(target_check_error(cur_target))
 				gdb_putpacketz("E01");
 			else
@@ -175,6 +159,12 @@ gdb_main(void)
 			if (sig < 0)
 				break;
 
+			/* Target disappeared */
+			if (cur_target == NULL) {
+				gdb_putpacket_f("X%02X", sig);
+				break;
+			}
+
 			/* Report reason for halt */
 			if(target_check_hw_wp(cur_target, &watch_addr)) {
 				/* Watchpoint hit */
@@ -217,7 +207,7 @@ gdb_main(void)
 			break;
 
 		case 0x04:
-                case 'D':	/* GDB 'detach' command. */
+		case 'D':	/* GDB 'detach' command. */
 			if(cur_target)
 				target_detach(cur_target);
 			last_target = cur_target;
@@ -249,12 +239,9 @@ gdb_main(void)
 			uint32_t addr, len;
 			int bin;
 			ERROR_IF_NO_TARGET();
-			sscanf(pbuf, "X%08lx,%08lx:%n", &addr, &len, &bin);
-            DEBUG("X packet: addr = %08lX, len = %08lX\r\n", addr, len);
-			if(((addr & 3) == 0) && ((len & 3) == 0))
-				target_mem_write_words(cur_target, addr, (void*)pbuf+bin, len);
-			else
-				target_mem_write_bytes(cur_target, addr, (void*)pbuf+bin, len);
+			sscanf(pbuf, "X%" SCNx32 ",%" SCNx32 ":%n", &addr, &len, &bin);
+			DEBUG("X packet: addr = %" PRIx32 ", len = %" PRIx32 "\n", addr, len);
+			target_mem_write(cur_target, addr, pbuf+bin, len);
 			if(target_check_error(cur_target))
 				gdb_putpacketz("E01");
 			else
@@ -341,11 +328,11 @@ handle_q_packet(char *packet, int len)
 			cur_target = target_attach(last_target,
 						gdb_target_destroy_callback);
 		}
-		if((!cur_target) || (!cur_target->xml_mem_map)) {
+		if (!cur_target) {
 			gdb_putpacketz("E01");
 			return;
 		}
-		handle_q_string_reply(cur_target->xml_mem_map, packet + 23);
+		handle_q_string_reply(target_mem_map(cur_target), packet + 23);
 
 	} else if (strncmp (packet, "qXfer:features:read:target.xml:", 31) == 0) {
 		/* Read target description */
@@ -354,12 +341,12 @@ handle_q_packet(char *packet, int len)
 			cur_target = target_attach(last_target,
 						gdb_target_destroy_callback);
 		}
-		if((!cur_target) || (!cur_target->tdesc)) {
+		if (!cur_target) {
 			gdb_putpacketz("E01");
 			return;
 		}
-		handle_q_string_reply(cur_target->tdesc, packet + 31);
-	} else if (sscanf(packet, "qCRC:%08lx,%08lx", &addr, &alen) == 2) {
+		handle_q_string_reply(target_tdesc(cur_target), packet + 31);
+	} else if (sscanf(packet, "qCRC:%" PRIx32 ",%" PRIx32, &addr, &alen) == 2) {
 		if(!cur_target) {
 			gdb_putpacketz("E01");
 			return;
@@ -402,8 +389,13 @@ handle_v_packet(char *packet, int plen)
 		} else if(last_target) {
 			cur_target = target_attach(last_target,
 						gdb_target_destroy_callback);
-			target_reset(cur_target);
-			gdb_putpacketz("T05");
+
+                        /* If we were able to attach to the target again */
+                        if (cur_target) {
+                        	target_reset(cur_target);
+                        	gdb_putpacketz("T05");
+                        } else	gdb_putpacketz("E01");
+
 		} else	gdb_putpacketz("E01");
 
 	} else if (sscanf(packet, "vFlashErase:%08lx,%08lx", &addr, &len) == 2) {
@@ -453,7 +445,7 @@ handle_v_packet(char *packet, int plen)
 
 	} else if (!strcmp(packet, "vFlashDone")) {
 		/* Commit flash operations. */
-		gdb_putpacketz("OK");
+		gdb_putpacketz(target_flash_done(cur_target) ? "EFF" : "OK");
 		flash_mode = 0;
 
 	} else {
@@ -476,13 +468,9 @@ handle_z_packet(char *packet, int plen)
 	 * with real sscanf() though... */
 	//sscanf(packet, "%*[zZ]%hhd,%08lX,%hhd", &type, &addr, &len);
 	type = packet[1] - '0';
-	sscanf(packet + 2, ",%08lx,%d", &addr, &len);
+	sscanf(packet + 2, ",%" PRIx32 ",%d", &addr, &len);
 	switch(type) {
 	case 1: /* Hardware breakpoint */
-		if(!cur_target->set_hw_bp) { /* Not supported */
-			gdb_putpacketz("");
-			return;
-		}
 		if(set)
 			ret = target_set_hw_bp(cur_target, addr);
 		else
@@ -492,10 +480,6 @@ handle_z_packet(char *packet, int plen)
 	case 2:
 	case 3:
 	case 4:
-		if(!cur_target->set_hw_wp) { /* Not supported */
-			gdb_putpacketz("");
-			return;
-		}
 		if(set)
 			ret = target_set_hw_wp(cur_target, type, addr, len);
 		else

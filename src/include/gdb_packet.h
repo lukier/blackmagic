@@ -21,10 +21,8 @@
 #ifndef __GDB_PACKET_H
 #define __GDB_PACKET_H
 
-#include <string.h>
-
 int gdb_getpacket(char *packet, int size);
-void gdb_putpacket(char *packet, int size);
+void gdb_putpacket(const char *packet, int size);
 #define gdb_putpacketz(packet) gdb_putpacket((packet), strlen(packet))
 void gdb_putpacket_f(const char *packet, ...);
 

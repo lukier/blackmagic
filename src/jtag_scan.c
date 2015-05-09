@@ -22,18 +22,12 @@
  * to detect devices on the scan chain and read their IDCODEs.
  * It depends on the low-level function provided by the platform's jtagtap.c.
  */
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
-#include <assert.h>
 
 #include "general.h"
 #include "jtagtap.h"
+#include "morse.h"
 #include "jtag_scan.h"
-
 #include "gdb_packet.h"
-
 #include "adiv5.h"
 #include "arm7tdmi.h"
 
@@ -49,9 +43,6 @@ static struct jtag_dev_descr_s {
 	{.idcode = 0x0BA00477, .idmask = 0x0FFF0FFF,
 		.descr = "ARM Limited: ADIv5 JTAG-DP port.",
 		.handler = adiv5_jtag_dp_handler},
-	{.idcode = 0x3F0F0F0F, .idmask = 0xFFFFFFFF,
-		.descr = "ST Microelectronics: STR730",
-		.handler = arm7tdmi_jtag_handler},
 	{.idcode = 0x06410041, .idmask = 0x0FFFFFFF,
 		.descr = "ST Microelectronics: STM32, Medium density."},
 	{.idcode = 0x06412041, .idmask = 0x0FFFFFFF,
@@ -115,6 +106,8 @@ int jtag_scan(const uint8_t *irlens)
 	 */
     DEBUG("Resetting TAP\r\n");
 	jtagtap_init();
+	if(connect_assert_srst)
+		jtagtap_srst(true); /* will be deasserted after attach */
 	jtagtap_reset();
 
 	if (irlens) {
