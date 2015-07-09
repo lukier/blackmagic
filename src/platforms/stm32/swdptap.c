@@ -32,7 +32,7 @@ static void swdptap_turnaround(uint8_t dir)
 {
 	static uint8_t olddir = 0;
 
-	//DEBUG("%s", dir ? "\n-> ":"\n<- ");
+	DEBUG("%s", dir ? "\n-> ":"\n<- ");
 
 	/* Don't turnaround if direction not changing */
 	if(dir == olddir) return;
@@ -54,14 +54,14 @@ static uint8_t swdptap_bit_in(void)
 	gpio_set(SWCLK_PORT, SWCLK_PIN);
 	gpio_clear(SWCLK_PORT, SWCLK_PIN);
 
-	//DEBUG("%d", ret?1:0);
+	DEBUG("%d", ret?1:0);
 
 	return ret != 0;
 }
 
 static void swdptap_bit_out(uint8_t val)
 {
-	//DEBUG("%d", val);
+	DEBUG("%d", val);
 
 	gpio_set_val(SWDIO_PORT, SWDIO_PIN, val);
 	gpio_set(SWCLK_PORT, SWCLK_PIN);

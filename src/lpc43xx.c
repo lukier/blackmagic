@@ -56,11 +56,6 @@ static void lpc43xx_set_internal_clock(target *t);
 static void lpc43xx_wdt_set_period(target *t);
 static void lpc43xx_wdt_pet(target *t);
 
-
-static int lpc43xx_spifi_init(struct target_s *target);
-static int lpc43xx_spifi_write(struct target_s *target, uint32_t dest, const uint8_t *src, int len);
-static int lpc43xx_spifi_erase(struct target_s *target, uint32_t addr, int len);
-
 const struct command_s lpc43xx_cmd_list[] = {
 	{"erase_mass", lpc43xx_cmd_erase, "Erase entire flash memory"},
 	{"reset", lpc43xx_cmd_reset, "Reset target"},
@@ -85,35 +80,6 @@ void lpc43xx_add_flash(target *t, uint32_t iap_entry,
 }
 
 bool lpc43xx_probe(target *t)
-/*
- " <!DOCTYPE m*emory-map "
- " PUBLIC \"+//IDN gnu.org//DTD GDB Memory Map V1.0//EN\""
- "\"http://sourceware.org/gdb/gdb-memory-map.dtd\">"
- */
-"<memory-map>"
-"  <memory type=\"ram\" start=\"0x00000000\" length=\"0x10000000\"/>"   // shadow?
-"  <memory type=\"ram\" start=\"0x10000000\" length=\"0x20000\"/>"      // Local SRAM
-"  <memory type=\"ram\" start=\"0x10080000\" length=\"0x12000\"/>"      // Local SRAM
-"  <memory type=\"ram\" start=\"0x20000000\" length=\"0x8000\"/>"       // AHB SRAM
-"  <memory type=\"ram\" start=\"0x20080000\" length=\"0x4000\"/>"       // AHB SRAM
-"  <memory type=\"ram\" start=\"0x200C0000\" length=\"0x4000\"/>"       // AHB SRAM
-"  <memory type=\"flash\" start=\"0x14000000\" length=\"0x1000000\">"   // SPIFI flash
-"    <property name=\"blocksize\">0x10000</property>"                   // SPIFI flash erase sector size
-"  </memory>"
-"  <memory type=\"flash\" start=\"0x80000000\" length=\"0x1000000\">"   // SPIFI flash alternative location
-"    <property name=\"blocksize\">0x10000</property>"                   // SPIFI flash erase sector size
-"  </memory>"
-"  <memory type=\"rom\" start=\"0x10400000\" length=\"0x10000\"/>"      // NXP ROM
-//"  <memory type=\"ram\" start=\"0x1C000000\" length=\"0x1000000\"/>"    // CS0 - ignore that, the debugger wont initialize memory controller
-//"  <memory type=\"ram\" start=\"0x1D000000\" length=\"0x1000000\"/>"    // CS1
-//"  <memory type=\"ram\" start=\"0x1E000000\" length=\"0x1000000\"/>"    // CS2
-//"  <memory type=\"ram\" start=\"0x1F000000\" length=\"0x1000000\"/>"    // CS3
-//"  <memory type=\"ram\" start=\"0x28000000\" length=\"0x8000000\"/>"    // DYCS0
-//"  <memory type=\"ram\" start=\"0x30000000\" length=\"0x10000000\"/>"   // DYCS1
-//"  <memory type=\"ram\" start=\"0x60000000\" length=\"0x10000000\"/>"   // DYCS2
-//"  <memory type=\"ram\" start=\"0x70000000\" length=\"0x10000000\"/>"   // DYCS3
-"</memory-map>";
-
 {
 	uint32_t chipid, cpuid;
 	uint32_t iap_entry;
@@ -159,11 +125,6 @@ bool lpc43xx_probe(target *t)
 		switch (cpuid & 0xFF00FFF0) {
 		case 0x4100C240:
 			t->driver = "LPC43xx Cortex-M4";
-                    /* LPC4330 */
-                    target->xml_mem_map = lpc4330_xml_memory_map;
-                    target->flash_erase = lpc43xx_spifi_erase;// TODO FIXME implement SPIFI
-                    target->flash_write = lpc43xx_spifi_write;// TODO FIXME implement SPIFI
-                    target_add_commands(target, lpc43xx_cmd_list, "LPC43xx");
 			break;
 		case 0x4100C200:
 			t->driver = "LPC43xx Cortex-M0";
@@ -183,15 +144,15 @@ static bool lpc43xx_cmd_reset(target *t, int argc, const char *argv[])
 	(void)argc;
 	(void)argv;
 
-    /* Cortex-M4 Application Interrupt and Reset Control Register */
-    static const uint32_t AIRCR = 0xE000ED0C;
-    /* Magic value key */
-    static const uint32_t reset_val = 0x05FA0004;
-    
-    /* System reset on target */
+	/* Cortex-M4 Application Interrupt and Reset Control Register */
+	static const uint32_t AIRCR = 0xE000ED0C;
+	/* Magic value key */
+	static const uint32_t reset_val = 0x05FA0004;
+
+	/* System reset on target */
 	target_mem_write(t, AIRCR, &reset_val, sizeof(reset_val));
-    
-    return true;
+
+	return true;
 }
 
 static bool lpc43xx_cmd_erase(target *t, int argc, const char *argv[])
@@ -305,19 +266,3 @@ static void lpc43xx_wdt_pet(target *t)
 	}
 }
 
-static int lpc43xx_spifi_init(struct target_s *target)
-{
-    return 0;
-}
-
-static int lpc43xx_spifi_write(struct target_s *target, uint32_t dest, const uint8_t *src, int len)
-{
-    DEBUG(__PRETTY_FUNCTION__);
-    return 0;
-}
-
-static int lpc43xx_spifi_erase(struct target_s *target, uint32_t addr, int len)
-{
-    DEBUG(__PRETTY_FUNCTION__);
-    return 0;
-}

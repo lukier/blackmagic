@@ -1,11 +1,11 @@
-CROSS_COMPILE = arm-none-eabi-
+CROSS_COMPILE = stm32-
 CC = $(CROSS_COMPILE)gcc
 OBJCOPY = $(CROSS_COMPILE)objcopy
 
-all:	lpcspifi_init.bin lpcspifi_write.bin
+all:	stm32_opterase.bin stm32_optprog.bin
 
-%.bin:	../../flashstub/%.S
-	$(CC) -nostdlib -Wl,-Ttext,0x10080000 $<
+%.bin:	%.S
+	$(CC) -nostdlib -Wl,-Ttext,0x20000000 $<
 	$(OBJCOPY) -O binary a.out $@
 
 clean:

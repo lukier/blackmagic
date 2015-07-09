@@ -180,7 +180,6 @@ static bool cmd_jtag_scan(target *t, int argc, char **argv)
 			 jtag_devs[i].descr);
 	gdb_out("\n");
 	cmd_targets(NULL);
-
 	return true;
 }
 

@@ -58,7 +58,7 @@ int adiv5_swdp_scan(void)
 	swdptap_seq_out(0xA5, 8);
 	ack = swdptap_seq_in(3);
 	if((ack != SWDP_ACK_OK) || swdptap_seq_in_parity(&dp->idcode, 32)) {
-        DEBUG("\r\n");
+		DEBUG("\n");
 		morse("NO TARGETS.", 1);
 		free(dp);
 		return -1;

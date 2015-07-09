@@ -66,7 +66,7 @@ gdb_main(void)
 	bool single_step = false;
 	char last_activity = 0;
 
-	DEBUG("Entring GDB protocol main loop\r\n");
+	DEBUG("Entring GDB protocol main loop\n");
 	/* GDB protocol main loop */
 	while(1) {
 		SET_IDLE_STATE(1);
@@ -88,7 +88,7 @@ gdb_main(void)
 			ERROR_IF_NO_TARGET();
 			sscanf(pbuf, "m%" SCNx32 ",%" SCNx32, &addr, &len);
 			DEBUG("m packet: addr = %" PRIx32 ", len = %" PRIx32 "\n", addr, len);
-			char mem[len];
+			uint8_t mem[len];
 			target_mem_read(cur_target, mem, addr, len);
 			if(target_check_error(cur_target))
 				gdb_putpacketz("E01");
@@ -110,7 +110,7 @@ gdb_main(void)
 			ERROR_IF_NO_TARGET();
 			sscanf(pbuf, "M%" SCNx32 ",%" SCNx32 ":%n", &addr, &len, &hex);
 			DEBUG("M packet: addr = %" PRIx32 ", len = %" PRIx32 "\n", addr, len);
-			char mem[len];
+			uint8_t mem[len];
 			unhexify(mem, pbuf + hex, len);
 			target_mem_write(cur_target, addr, mem, len);
 			if(target_check_error(cur_target))
@@ -265,7 +265,7 @@ gdb_main(void)
 			break;
 
 		default: 	/* Packet not implemented */
-            DEBUG("*** Unsupported packet: %s\r\n", pbuf);
+			DEBUG("*** Unsupported packet: %s\n", pbuf);
 			gdb_putpacketz("");
 		}
 	}
@@ -354,7 +354,7 @@ handle_q_packet(char *packet, int len)
 		gdb_putpacket_f("C%lx", generic_crc32(cur_target, addr, alen));
 
 	} else {
-        DEBUG("*** Unsupported packet: %s\r\n", packet);
+		DEBUG("*** Unsupported packet: %s\n", packet);
 		gdb_putpacket("", 0);
 	}
 }
@@ -400,44 +400,24 @@ handle_v_packet(char *packet, int plen)
 
 	} else if (sscanf(packet, "vFlashErase:%08lx,%08lx", &addr, &len) == 2) {
 		/* Erase Flash Memory */
-        DEBUG("Flash Erase %08lX %08lX\r\n", addr, len);
-		if(!cur_target) 
-        { 
-            gdb_putpacketz("EFF"); return; 
-        }
-        
-        if(cur_target->flash_erase == 0) // not supported
-        {
-            gdb_putpacketz("EFF"); return; 
-        }
-        
+		DEBUG("Flash Erase %08lX %08lX\n", addr, len);
+		if(!cur_target) { gdb_putpacketz("EFF"); return; }
+
 		if(!flash_mode) {
 			/* Reset target if first flash command! */
 			/* This saves us if we're interrupted in IRQ context */
 			target_reset(cur_target);
 			flash_mode = 1;
 		}
-		
 		if(target_flash_erase(cur_target, addr, len) == 0)
-        {
 			gdb_putpacketz("OK");
-        }
 		else
-        {
 			gdb_putpacketz("EFF");
-        }
-        
+
 	} else if (sscanf(packet, "vFlashWrite:%08lx:%n", &addr, &bin) == 1) {
 		/* Write Flash Memory */
 		len = plen - bin;
-        DEBUG("Flash Write %08lX %08lX\r\n", addr, len);
-        
-        if(cur_target->flash_write == 0) // not supported
-        {
-            DEBUG("FlashWrite not supported by the target\r\n");
-            gdb_putpacketz("EFF"); return; 
-        }
-        
+		DEBUG("Flash Write %08lX %08lX\n", addr, len);
 		if(cur_target && target_flash_write(cur_target, addr, (void*)packet + bin, len) == 0)
 			gdb_putpacketz("OK");
 		else
@@ -449,7 +429,7 @@ handle_v_packet(char *packet, int plen)
 		flash_mode = 0;
 
 	} else {
-        DEBUG("*** Unsupported packet: %s\r\n", packet);
+		DEBUG("*** Unsupported packet: %s\n", packet);
 		gdb_putpacket("", 0);
 	}
 }

@@ -239,7 +239,7 @@ bool cortexm_probe(target *t)
 #define PROBE(x) \
 	do { if ((x)(t)) return true; else target_check_error(t); } while (0)
 
-    PROBE(stm32f1_probe);
+	PROBE(stm32f1_probe);
 	PROBE(stm32f4_probe);
 	PROBE(stm32l0_probe);   /* STM32L0xx & STM32L1xx */
 	PROBE(lpc11xx_probe);
@@ -787,7 +787,7 @@ static bool cortexm_vector_catch(target *t, int argc, char *argv[])
 		gdb_out("usage: monitor vector_catch (enable|disable) "
 			"(hard|int|bus|stat|chk|nocp|mm|reset)\n");
 	} else {
-		for (j = 0; j < (unsigned)argc; j++)
+		for (int j = 0; j < argc; j++)
 			for (i = 0; i < sizeof(vectors) / sizeof(char*); i++) {
 				if (vectors[i] && !strcmp(vectors[i], argv[j]))
 					tmp |= 1 << i;
@@ -860,7 +860,7 @@ static int cortexm_hostio_request(target *t)
 	target_mem_read(t, params, arm_regs[1], sizeof(params));
 	priv->syscall = arm_regs[0];
 
-    DEBUG("syscall 0x%x (%x %x %x %x)\r\n", priv->syscall,
+	DEBUG("syscall 0x%x (%x %x %x %x)\n", priv->syscall,
 			params[0], params[1], params[2], params[3]);
 	switch (priv->syscall) {
 	case SYS_OPEN:{	/* open */
@@ -957,7 +957,7 @@ static void cortexm_hostio_reply(target *t, int32_t retcode, uint32_t errcode)
 	struct cortexm_priv *priv = ap->priv;
 	uint32_t arm_regs[t->regs_size];
 
-    DEBUG("syscall return ret=%d errno=%d\r\n", retcode, errcode);
+	DEBUG("syscall return ret=%d errno=%d\n", retcode, errcode);
 	target_regs_read(t, arm_regs);
 	if (((priv->syscall == SYS_READ) || (priv->syscall == SYS_WRITE)) &&
 	    (retcode > 0))
