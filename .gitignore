@@ -14,11 +14,10 @@ tags
 .gdbinit
 *.s#*
 *.b#*
+blackmagic_upgrade
+*.exe
 *.kdev4
 obj
 obj_arm
 obj_release
-blackmagic_upgrade
-*.exe
-
 

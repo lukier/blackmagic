@@ -46,7 +46,6 @@
 
 #define FLASH_NUM_BANK		2
 #define FLASH_NUM_SECTOR	15
-
 static bool lpc43xx_cmd_erase(target *t, int argc, const char *argv[]);
 static bool lpc43xx_cmd_reset(target *t, int argc, const char *argv[]);
 static bool lpc43xx_cmd_mkboot(target *t, int argc, const char *argv[]);
@@ -78,8 +77,8 @@ void lpc43xx_add_flash(target *t, uint32_t iap_entry,
 	lf->iap_msp = IAP_RAM_BASE + IAP_RAM_SIZE;
 	lf->wdt_kick = lpc43xx_wdt_pet;
 }
-
 bool lpc43xx_probe(target *t)
+
 {
 	uint32_t chipid, cpuid;
 	uint32_t iap_entry;
@@ -144,15 +143,15 @@ static bool lpc43xx_cmd_reset(target *t, int argc, const char *argv[])
 	(void)argc;
 	(void)argv;
 
-	/* Cortex-M4 Application Interrupt and Reset Control Register */
-	static const uint32_t AIRCR = 0xE000ED0C;
-	/* Magic value key */
-	static const uint32_t reset_val = 0x05FA0004;
-
-	/* System reset on target */
+    /* Cortex-M4 Application Interrupt and Reset Control Register */
+    static const uint32_t AIRCR = 0xE000ED0C;
+    /* Magic value key */
+    static const uint32_t reset_val = 0x05FA0004;
+    
+    /* System reset on target */
 	target_mem_write(t, AIRCR, &reset_val, sizeof(reset_val));
-
-	return true;
+    
+    return true;
 }
 
 static bool lpc43xx_cmd_erase(target *t, int argc, const char *argv[])

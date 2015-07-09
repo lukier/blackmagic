@@ -88,7 +88,7 @@ gdb_main(void)
 			ERROR_IF_NO_TARGET();
 			sscanf(pbuf, "m%" SCNx32 ",%" SCNx32, &addr, &len);
 			DEBUG("m packet: addr = %" PRIx32 ", len = %" PRIx32 "\n", addr, len);
-			uint8_t mem[len];
+			char mem[len];
 			target_mem_read(cur_target, mem, addr, len);
 			if(target_check_error(cur_target))
 				gdb_putpacketz("E01");
@@ -110,7 +110,7 @@ gdb_main(void)
 			ERROR_IF_NO_TARGET();
 			sscanf(pbuf, "M%" SCNx32 ",%" SCNx32 ":%n", &addr, &len, &hex);
 			DEBUG("M packet: addr = %" PRIx32 ", len = %" PRIx32 "\n", addr, len);
-			uint8_t mem[len];
+			char mem[len];
 			unhexify(mem, pbuf + hex, len);
 			target_mem_write(cur_target, addr, mem, len);
 			if(target_check_error(cur_target))
