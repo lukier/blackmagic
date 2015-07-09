@@ -22,18 +22,15 @@
  * commands.
  */
 
-#include <stdlib.h>
-#include <string.h>
-
 #include "general.h"
-
+#include "exception.h"
 #include "command.h"
 #include "gdb_packet.h"
-
 #include "jtag_scan.h"
 #include "target.h"
-
+#include "morse.h"
 #include "adiv5.h"
+#include "version.h"
 
 #ifdef PLATFORM_HAS_TRACESWO
 #	include "traceswo.h"
@@ -47,7 +44,9 @@ static bool cmd_swdp_scan(void);
 static bool cmd_targets(target *t);
 static bool cmd_morse(void);
 static bool cmd_connect_srst(target *t, int argc, const char **argv);
+#ifdef PLATFORM_HAS_POWER_SWITCH
 static bool cmd_target_power(target *t, int argc, const char **argv);
+#endif
 #ifdef PLATFORM_HAS_TRACESWO
 static bool cmd_traceswo(void);
 #endif
@@ -60,7 +59,9 @@ const struct command_s cmd_list[] = {
 	{"targets", (cmd_handler)cmd_targets, "Display list of available targets" },
 	{"morse", (cmd_handler)cmd_morse, "Display morse error message" },
 	{"connect_srst", (cmd_handler)cmd_connect_srst, "Configure connect under SRST: (enable|disable)" },
+#ifdef PLATFORM_HAS_POWER_SWITCH
 	{"tpwr", (cmd_handler)cmd_target_power, "Supplies power to the target: (enable|disable)"},
+#endif
 #ifdef PLATFORM_HAS_TRACESWO
 	{"traceswo", (cmd_handler)cmd_traceswo, "Start trace capture" },
 #endif
@@ -107,8 +108,8 @@ int command_process(target *t, char *cmd)
 
 bool cmd_version(void)
 {
-	gdb_out("Black Magic Probe (Firmware 1.5" VERSION_SUFFIX ", build " BUILDDATE ")\n");
-	gdb_out("Copyright (C) 2011  Black Sphere Technologies Ltd.\n");
+	gdb_out("Black Magic Probe (Firmware " FIRMWARE_VERSION ")\n");
+	gdb_out("Copyright (C) 2015  Black Sphere Technologies Ltd.\n");
 	gdb_out("License GPLv3+: GNU GPL version 3 or later "
 		"<http://gnu.org/licenses/gpl.html>\n\n");
 
@@ -139,19 +140,30 @@ bool cmd_help(target *t)
 static bool cmd_jtag_scan(target *t, int argc, char **argv)
 {
 	(void)t;
-	uint8_t *irlens = NULL;
+	uint8_t irlens[argc];
 
 	gdb_outf("Target voltage: %s\n", platform_target_voltage());
 
 	if (argc > 1) {
 		/* Accept a list of IR lengths on command line */
-		irlens = alloca(argc);
 		for (int i = 1; i < argc; i++)
 			irlens[i-1] = atoi(argv[i]);
 		irlens[argc-1] = 0;
 	}
 
-	int devs = jtag_scan(irlens);
+	int devs = -1;
+	volatile struct exception e;
+	TRY_CATCH (e, EXCEPTION_ALL) {
+		devs = jtag_scan(argc > 1 ? irlens : NULL);
+	}
+	switch (e.type) {
+	case EXCEPTION_TIMEOUT:
+		gdb_outf("Timeout during scan. Is target stuck in WFI?\n");
+		break;
+	case EXCEPTION_ERROR:
+		gdb_outf("Exception: %s\n", e.msg);
+		break;
+	}
 
 	if(devs < 0) {
 		gdb_out("JTAG device scan failed!\n");
@@ -176,12 +188,24 @@ bool cmd_swdp_scan(void)
 {
 	gdb_outf("Target voltage: %s\n", platform_target_voltage());
 
-	if(adiv5_swdp_scan() < 0) {
+	int devs = -1;
+	volatile struct exception e;
+	TRY_CATCH (e, EXCEPTION_ALL) {
+		devs = adiv5_swdp_scan();
+	}
+	switch (e.type) {
+	case EXCEPTION_TIMEOUT:
+		gdb_outf("Timeout during scan. Is target stuck in WFI?\n");
+		break;
+	case EXCEPTION_ERROR:
+		gdb_outf("Exception: %s\n", e.msg);
+		break;
+	}
+
+	if(devs < 0) {
 		gdb_out("SW-DP scan failed!\n");
 		return false;
 	}
-
-	//gdb_outf("SW-DP detected IDCODE: 0x%08X\n", adiv5_dp_list->idcode);
 
 	cmd_targets(NULL);
 	return true;
@@ -224,16 +248,19 @@ static bool cmd_connect_srst(target *t, int argc, const char **argv)
 		connect_assert_srst = !strcmp(argv[1], "enable");
 	return true;
 }
+
+#ifdef PLATFORM_HAS_POWER_SWITCH
 static bool cmd_target_power(target *t, int argc, const char **argv)
 {
 	(void)t;
 	if (argc == 1)
 		gdb_outf("Target Power: %s\n",
-			 !platform_target_get_power() ? "enabled" : "disabled");
+			 platform_target_get_power() ? "enabled" : "disabled");
 	else
 		platform_target_set_power(!strncmp(argv[1], "enable", strlen(argv[1])));
 	return true;
 }
+#endif
 
 #ifdef PLATFORM_HAS_TRACESWO
 static bool cmd_traceswo(void)

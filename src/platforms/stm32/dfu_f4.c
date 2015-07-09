@@ -16,8 +16,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
-#include "platform.h"
+#include "general.h"
+#include "usbdfu.h"
 
 #if defined(STM32F2)
 #	include <libopencm3/stm32/f2/flash.h>
@@ -26,15 +26,17 @@
 #endif
 #include <libopencm3/cm3/scb.h>
 
-#include "usbdfu.h"
-
-static uint32_t sector_addr[] = {0x8000000, 0x8004000, 0x8008000, 0x800c000,
-                            0x8010000, 0x8020000, 0x8040000, 0x8060000,
-                            0x8080000, 0x80a0000, 0x80c0000, 0x80e0000,
-                            0x8100000, 0};
-static uint16_t sector_erase_time[12]= {500, 500, 500, 500,
-                            1100,
-                            2600, 2600, 2600, 2600, 2600, 2600, 2600};
+static uint32_t sector_addr[] = {
+	0x8000000, 0x8004000, 0x8008000, 0x800c000,
+	0x8010000, 0x8020000, 0x8040000, 0x8060000,
+	0x8080000, 0x80a0000, 0x80c0000, 0x80e0000,
+	0x8100000, 0
+};
+static uint16_t sector_erase_time[12]= {
+	500, 500, 500, 500,
+	1100, 2600, 2600, 2600,
+	2600, 2600, 2600, 2600
+};
 static uint8_t sector_num = 0xff;
 
 /* Find the sector number for a given address*/
@@ -45,7 +47,7 @@ static void get_sector_num(uint32_t addr)
 		if (addr < sector_addr[i+1])
 			break;
 		i++;
-		}
+	}
 	if (!sector_addr[i])
 		return;
 	sector_num = i;
@@ -61,9 +63,8 @@ void dfu_check_and_do_sector_erase(uint32_t addr)
 void dfu_flash_program_buffer(uint32_t baseaddr, void *buf, int len)
 {
 	for(int i = 0; i < len; i += 4)
-		flash_program_word(baseaddr + i,
-			*(uint32_t*)(buf+i),
-			FLASH_PROGRAM_X32);
+		flash_program_word(baseaddr + i, *(uint32_t*)(buf+i),
+		                   FLASH_PROGRAM_X32);
 }
 
 uint32_t dfu_poll_timeout(uint8_t cmd, uint32_t addr, uint16_t blocknum)
@@ -100,7 +101,7 @@ void dfu_jump_app_if_valid(void)
 		SCB_VTOR = APP_ADDRESS & 0x1FFFFF; /* Max 2 MByte Flash*/
 		/* Initialise master stack pointer */
 		asm volatile ("msr msp, %0"::"g"
-				(*(volatile uint32_t*)APP_ADDRESS));
+		              (*(volatile uint32_t*)APP_ADDRESS));
 		/* Jump to application */
 		(*(void(**)())(APP_ADDRESS + 4))();
 	}

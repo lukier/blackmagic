@@ -17,17 +17,17 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <string.h>
+#include "general.h"
+#include "usbdfu.h"
+
 #include <libopencm3/cm3/systick.h>
 #include <libopencm3/stm32/rcc.h>
 #include <libopencm3/stm32/gpio.h>
 #include <libopencm3/cm3/scb.h>
 
-#include "usbdfu.h"
-
 void dfu_detach(void)
 {
-        /* USB device must detach, we just reset... */
+	/* USB device must detach, we just reset... */
 	scb_reset_system();
 }
 
@@ -40,8 +40,8 @@ int main(void)
 
 	dfu_protect_enable();
 
-        /* Set up clock*/
-        rcc_clock_setup_hse_3v3(&hse_8mhz_3v3[CLOCK_3V3_168MHZ]);
+	/* Set up clock*/
+	rcc_clock_setup_hse_3v3(&hse_8mhz_3v3[CLOCK_3V3_168MHZ]);
 	systick_set_clocksource(STK_CSR_CLKSOURCE_AHB_DIV8);
 	systick_set_reload(2100000);
 

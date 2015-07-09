@@ -25,8 +25,6 @@
 #ifndef __TARGET_H
 #define __TARGET_H
 
-#include "general.h"
-
 typedef struct target_s target;
 
 /* The destroy callback function will be called by target_list_free() just
@@ -50,18 +48,11 @@ target *target_attach(target *t, target_destroy_callback destroy_cb);
 	(target)->check_error(target)
 
 /* Memory access functions */
-#define target_mem_read_words(target, dest, src, len)	\
-	(target)->mem_read_words((target), (dest), (src), (len))
+#define target_mem_read(target, dest, src, len)	\
+	(target)->mem_read((target), (dest), (src), (len))
 
-#define target_mem_write_words(target, dest, src, len)	\
-	(target)->mem_write_words((target), (dest), (src), (len))
-
-#define target_mem_read_bytes(target, dest, src, len)	\
-	(target)->mem_read_bytes((target), (dest), (src), (len))
-
-#define target_mem_write_bytes(target, dest, src, len)	\
-	(target)->mem_write_bytes((target), (dest), (src), (len))
-
+#define target_mem_write(target, dest, src, len)	\
+	(target)->mem_write((target), (dest), (src), (len))
 
 /* Register access functions */
 #define target_regs_read(target, data)	\
@@ -69,12 +60,6 @@ target *target_attach(target *t, target_destroy_callback destroy_cb);
 
 #define target_regs_write(target, data)	\
 	(target)->regs_write((target), (data))
-
-#define target_pc_read(target)	\
-	(target)->pc_read((target))
-
-#define target_pc_write(target, val)	\
-	(target)->pc_write((target), (val))
 
 
 /* Halt/resume functions */
@@ -110,70 +95,96 @@ target *target_attach(target *t, target_destroy_callback destroy_cb);
 
 
 /* Flash memory access functions */
-#define target_flash_erase(target, addr, len)	\
-	(target)->flash_erase((target), (addr), (len))
-
-#define target_flash_write(target, dest, src, len)	\
-	(target)->flash_write((target), (dest), (src), (len))
+int target_flash_erase(target *t, uint32_t addr, size_t len);
+int target_flash_write(target *t,
+                       uint32_t dest, const void *src, size_t len);
+int target_flash_done(target *t);
 
 /* Host I/O */
 #define target_hostio_reply(target, recode, errcode)	\
 	(target)->hostio_reply((target), (retcode), (errcode))
 
+/* Accessor functions */
+#define target_regs_size(target) \
+	((target)->regs_size)
+
+#define target_tdesc(target) \
+	((target)->tdesc ? (target)->tdesc : "")
+
+struct target_ram {
+	uint32_t start;
+	uint32_t length;
+	struct target_ram *next;
+};
+
+struct target_flash;
+typedef int (*flash_erase_func)(struct target_flash *f, uint32_t addr, size_t len);
+typedef int (*flash_write_func)(struct target_flash *f, uint32_t dest,
+                                const void *src, size_t len);
+typedef int (*flash_done_func)(struct target_flash *f);
+struct target_flash {
+	uint32_t start;
+	uint32_t length;
+	uint32_t blocksize;
+	flash_erase_func erase;
+	flash_write_func write;
+	flash_done_func done;
+	target *t;
+	struct target_flash *next;
+	int align;
+	uint8_t erased;
+
+	/* For buffered flash */
+	size_t buf_size;
+	flash_write_func write_buf;
+	uint32_t buf_addr;
+	void *buf;
+};
 
 struct target_s {
 	/* Notify controlling debugger if target is lost */
 	target_destroy_callback destroy_callback;
 
 	/* Attach/Detach funcitons */
-	bool (*attach)(struct target_s *target);
-	void (*detach)(struct target_s *target);
-	int (*check_error)(struct target_s *target);
+	bool (*attach)(target *t);
+	void (*detach)(target *t);
+	bool (*check_error)(target *t);
 
 	/* Memory access functions */
-	int (*mem_read_words)(struct target_s *target, uint32_t *dest, uint32_t src,
-				int len);
-	int (*mem_write_words)(struct target_s *target, uint32_t dest,
-				const uint32_t *src, int len);
-
-	int (*mem_read_bytes)(struct target_s *target, uint8_t *dest, uint32_t src,
-				int len);
-	int (*mem_write_bytes)(struct target_s *target, uint32_t dest,
-				const uint8_t *src, int len);
+	void (*mem_read)(target *t, void *dest, uint32_t src,
+	                 size_t len);
+	void (*mem_write)(target *t, uint32_t dest,
+	                  const void *src, size_t len);
 
 	/* Register access functions */
 	int regs_size;
 	const char *tdesc;
-	int (*regs_read)(struct target_s *target, void *data);
-	int (*regs_write)(struct target_s *target, const void *data);
-
-	uint32_t (*pc_read)(struct target_s *target);
-	int (*pc_write)(struct target_s *target, const uint32_t val);
+	void (*regs_read)(target *t, void *data);
+	void (*regs_write)(target *t, const void *data);
 
 	/* Halt/resume functions */
-	void (*reset)(struct target_s *target);
-	void (*halt_request)(struct target_s *target);
-	int (*halt_wait)(struct target_s *target);
-	void (*halt_resume)(struct target_s *target, bool step);
+	void (*reset)(target *t);
+	void (*halt_request)(target *t);
+	int (*halt_wait)(target *t);
+	void (*halt_resume)(target *t, bool step);
 
 	/* Break-/watchpoint functions */
-	int (*set_hw_bp)(struct target_s *target, uint32_t addr);
-	int (*clear_hw_bp)(struct target_s *target, uint32_t addr);
+	int (*set_hw_bp)(target *t, uint32_t addr);
+	int (*clear_hw_bp)(target *t, uint32_t addr);
 
-	int (*set_hw_wp)(struct target_s *target, uint8_t type, uint32_t addr, uint8_t len);
-	int (*clear_hw_wp)(struct target_s *target, uint8_t type, uint32_t addr, uint8_t len);
+	int (*set_hw_wp)(target *t, uint8_t type, uint32_t addr, uint8_t len);
+	int (*clear_hw_wp)(target *t, uint8_t type, uint32_t addr, uint8_t len);
 
-	int (*check_hw_wp)(struct target_s *target, uint32_t *addr);
+	int (*check_hw_wp)(target *t, uint32_t *addr);
 
 	/* target-defined options */
 	unsigned target_options;
 	uint32_t idcode;
 
-	/* Flash memory access functions */
-	const char *xml_mem_map;
-	int (*flash_erase)(struct target_s *target, uint32_t addr, int len);
-	int (*flash_write)(struct target_s *target, uint32_t dest,
-				const uint8_t *src, int len);
+	/* Target memory map */
+	char *dyn_mem_map;
+	struct target_ram *ram;
+	struct target_flash *flash;
 
 	/* Host I/O support */
 	void (*hostio_reply)(target *t, int32_t retcode, uint32_t errcode);
@@ -200,19 +211,65 @@ extern bool connect_assert_srst;
 target *target_new(unsigned size);
 void target_list_free(void);
 void target_add_commands(target *t, const struct command_s *cmds, const char *name);
+void target_add_ram(target *t, uint32_t start, uint32_t len);
+void target_add_flash(target *t, struct target_flash *f);
+const char *target_mem_map(target *t);
+int target_flash_write_buffered(struct target_flash *f,
+                                uint32_t dest, const void *src, size_t len);
+int target_flash_done_buffered(struct target_flash *f);
+
+static inline uint32_t target_mem_read32(target *t, uint32_t addr)
+{
+	uint32_t ret;
+	target_mem_read(t, &ret, addr, sizeof(ret));
+	return ret;
+}
+
+static inline void target_mem_write32(target *t, uint32_t addr, uint32_t value)
+{
+	target_mem_write(t, addr, &value, sizeof(value));
+}
+
+static inline uint16_t target_mem_read16(target *t, uint32_t addr)
+{
+	uint16_t ret;
+	target_mem_read(t, &ret, addr, sizeof(ret));
+	return ret;
+}
+
+static inline void target_mem_write16(target *t, uint32_t addr, uint16_t value)
+{
+	target_mem_write(t, addr, &value, sizeof(value));
+}
+
+static inline uint8_t target_mem_read8(target *t, uint32_t addr)
+{
+	uint8_t ret;
+	target_mem_read(t, &ret, addr, sizeof(ret));
+	return ret;
+}
+
+static inline void target_mem_write8(target *t, uint32_t addr, uint8_t value)
+{
+	target_mem_write(t, addr, &value, sizeof(value));
+}
+
 
 /* Probe for various targets.
  * Actual functions implemented in their respective drivers.
  */
-bool cortexm_probe(struct target_s *target);
-bool stm32f1_probe(struct target_s *target);
-bool stm32f4_probe(struct target_s *target);
-bool stm32l1_probe(struct target_s *target);
-bool lmi_probe(struct target_s *target);
-bool lpc11xx_probe(struct target_s *target);
-bool lpc43xx_probe(struct target_s *target);
-bool sam3x_probe(struct target_s *target);
-bool nrf51_probe(struct target_s *target);
+bool cortexm_probe(target *t);
+bool stm32f1_probe(target *t);
+bool stm32f4_probe(target *t);
+bool stm32l0_probe(target *t);
+bool stm32l1_probe(target *t);
+bool lmi_probe(target *t);
+bool lpc11xx_probe(target *t);
+bool lpc43xx_probe(target *t);
+bool sam3x_probe(target *t);
+bool nrf51_probe(target *t);
+bool samd_probe(target *t);
+bool kinetis_probe(target *t);
 
 #endif
 
