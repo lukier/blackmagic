@@ -14,7 +14,7 @@ set(TOOLCHAIN_PREFIX arm-none-eabi)
 # ---------------------------------------------
 # Toolchain version
 # ---------------------------------------------
-set(TOOLCHAIN_VERSION 4.8.3)
+set(TOOLCHAIN_VERSION 4.9.3)
 
 # ---------------------------------------------
 # Where is the target environment 

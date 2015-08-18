@@ -29,6 +29,8 @@
 
 #include <platform.h>
 
+#include <cdcacm.h>
+
 #define ENABLE_485FLOW_CONTROL
 
 #define USBUART_TIMER_FREQ_HZ 1000000U /* 1us per tick */
@@ -71,7 +73,7 @@ void usbuart_init(void)
     USBUSART_TIM_CLK_EN();
     timer_reset(USBUSART_TIM);
     timer_set_mode(USBUSART_TIM, TIM_CR1_CKD_CK_INT, TIM_CR1_CMS_EDGE, TIM_CR1_DIR_UP);
-    timer_set_prescaler(USBUSART_TIM, rcc_ppre2_frequency / USBUART_TIMER_FREQ_HZ * 2 - 1);
+    timer_set_prescaler(USBUSART_TIM, rcc_apb2_frequency / USBUART_TIMER_FREQ_HZ * 2 - 1);
     timer_set_period(USBUSART_TIM, USBUART_TIMER_FREQ_HZ / USBUART_RUN_FREQ_HZ - 1);
 
     /* Setup update interrupt in NVIC */

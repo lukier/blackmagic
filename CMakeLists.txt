@@ -137,7 +137,7 @@ set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} -T${EMBEDD
 # --------------------------------------------- 
 link_directories(/usr/${TOOLCHAIN_PREFIX}/${TOOLCHAIN_PREFIX}/lib/armv7-m)
 link_directories(/usr/${TOOLCHAIN_PREFIX}/lib/gcc/${TOOLCHAIN_PREFIX}/${TOOLCHAIN_VERSION}/armv7-m)
-set(STDLIB_COMMAND "-lc_s -lnosys -lgcc")
+set(STDLIB_COMMAND "-lc_nano -lnosys -lgcc")
 
 string(REPLACE "<LINK_LIBRARIES>" "-Wl,--start-group <LINK_LIBRARIES> ${STDLIB_COMMAND} -Wl,--end-group" CMAKE_C_LINK_EXECUTABLE         "${CMAKE_C_LINK_EXECUTABLE}")
 string(REPLACE "<LINK_LIBRARIES>" "-Wl,--start-group <LINK_LIBRARIES> ${STDLIB_COMMAND} -Wl,--end-group" CMAKE_C_CREATE_SHARED_LIBRARY   "${CMAKE_C_CREATE_SHARED_LIBRARY}")

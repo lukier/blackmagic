@@ -21,7 +21,7 @@
 .global _bindata, _bindatalen
 
 _bindata:
-	.incbin "../src/blackmagic.bin"
+	.incbin "../obj_arm/src/blackmagic.bin"
 
 _bindatalen:
 	.long (. - _bindata)
