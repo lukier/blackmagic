@@ -41,6 +41,8 @@
 #define ALIGN(x, n) (((x) + (n) - 1) & ~((n) - 1))
 #undef MIN
 #define MIN(x, y)  (((x) < (y)) ? (x) : (y))
+#undef MAX
+#define MAX(x, y)  (((x) > (y)) ? (x) : (y))
 
 #endif
 

@@ -67,15 +67,6 @@ void jtagtap_reset(void)
 	jtagtap_soft_reset();
 }
 
-void jtagtap_srst(bool assert)
-{
-	(void)assert;
-	platform_buffer_flush();
-	//ftdi_write_data(ftdic, "\x80\x88\xAB", 3);
-	//usleep(1000);
-	//ftdi_write_data(ftdic, "\x80\xA8\xAB", 3);
-}
-
 #ifndef PROVIDE_GENERIC_TAP_TMS_SEQ
 void
 jtagtap_tms_seq(uint32_t MS, int ticks)
@@ -182,6 +173,8 @@ jtagtap_tdi_tdo_seq(uint8_t *DO, const uint8_t final_tms, const uint8_t *DI, int
 		/*if(rsize) printf("%02X ", tmp[index]);*/
 		*DO++ = tmp[index++];
 	}
+	if (rticks == 0)
+		*DO++ = 0;
 	if(final_tms) {
 		rticks++;
 		*(--DO) >>= 1;
@@ -194,11 +187,11 @@ jtagtap_tdi_tdo_seq(uint8_t *DO, const uint8_t final_tms, const uint8_t *DI, int
 }
 #endif
 
-uint8_t jtagtap_next(uint8_t dTMS, uint8_t dTDO)
+uint8_t jtagtap_next(uint8_t dTMS, uint8_t dTDI)
 {
 	uint8_t ret;
 	uint8_t tmp[3] = "\x6B\x00\x00";
-	tmp[2] = (dTDO?0x80:0) | (dTMS?0x01:0);
+	tmp[2] = (dTDI?0x80:0) | (dTMS?0x01:0);
 //	assert(ftdi_write_data(ftdic, tmp, 3) == 3);
 //	while(ftdi_read_data(ftdic, &ret, 1) != 1);
 	platform_buffer_write(tmp, 3);
@@ -206,7 +199,7 @@ uint8_t jtagtap_next(uint8_t dTMS, uint8_t dTDO)
 
 	ret &= 0x80;
 
-//	DEBUG("jtagtap_next(TMS = %d, TDO = %d) = %02X\n", dTMS, dTDO, ret);
+//	DEBUG("jtagtap_next(TMS = %d, TDI = %d) = %02X\n", dTMS, dTDI, ret);
 
 	return ret;
 }

@@ -20,6 +20,7 @@
 #include <libopencm3/lm4f/gpio.h>
 #include <libopencm3/usb/usbd.h>
 
+#include "timing.h"
 #include "version.h"
 
 #define BOARD_IDENT             "Black Magic Probe (Launchpad ICDI), (Firmware " FIRMWARE_VERSION ")"
@@ -28,7 +29,6 @@
 #define DFU_IFACE_STRING	"lolwut"
 
 extern uint8_t running_status;
-extern volatile uint32_t timeout_counter;
 
 #define TMS_PORT	GPIOA_BASE
 #define TMS_PIN		GPIO3
@@ -96,6 +96,7 @@ extern usbd_driver lm4f_usb_driver;
 #define sscanf siscanf
 #define sprintf siprintf
 #define vasprintf vasiprintf
+#define snprintf sniprintf
 
 #define DEBUG(...)
 
@@ -114,5 +115,10 @@ inline static uint8_t gpio_get(uint32_t port, uint8_t pin) {
 }
 
 #define disconnect_usb() do { usbd_disconnect(usbdev,1); nvic_disable_irq(USB_IRQ);} while(0)
+
+static inline int platform_hwversion(void)
+{
+	        return 0;
+}
 
 #endif

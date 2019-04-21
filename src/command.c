@@ -26,29 +26,40 @@
 #include "exception.h"
 #include "command.h"
 #include "gdb_packet.h"
-#include "jtag_scan.h"
 #include "target.h"
 #include "morse.h"
-#include "adiv5.h"
 #include "version.h"
 
 #ifdef PLATFORM_HAS_TRACESWO
 #	include "traceswo.h"
 #endif
 
+typedef bool (*cmd_handler)(target *t, int argc, const char **argv);
+
+struct command_s {
+	const char *cmd;
+	cmd_handler handler;
+
+	const char *help;
+};
+
 static bool cmd_version(void);
 static bool cmd_help(target *t);
 
 static bool cmd_jtag_scan(target *t, int argc, char **argv);
 static bool cmd_swdp_scan(void);
-static bool cmd_targets(target *t);
+static bool cmd_targets(void);
 static bool cmd_morse(void);
 static bool cmd_connect_srst(target *t, int argc, const char **argv);
+static bool cmd_hard_srst(void);
 #ifdef PLATFORM_HAS_POWER_SWITCH
 static bool cmd_target_power(target *t, int argc, const char **argv);
 #endif
 #ifdef PLATFORM_HAS_TRACESWO
 static bool cmd_traceswo(void);
+#endif
+#ifdef PLATFORM_HAS_DEBUG
+static bool cmd_debug_bmp(target *t, int argc, const char **argv);
 #endif
 
 const struct command_s cmd_list[] = {
@@ -59,19 +70,26 @@ const struct command_s cmd_list[] = {
 	{"targets", (cmd_handler)cmd_targets, "Display list of available targets" },
 	{"morse", (cmd_handler)cmd_morse, "Display morse error message" },
 	{"connect_srst", (cmd_handler)cmd_connect_srst, "Configure connect under SRST: (enable|disable)" },
+	{"hard_srst", (cmd_handler)cmd_hard_srst, "Force a pulse on the hard SRST line - disconnects target" },
 #ifdef PLATFORM_HAS_POWER_SWITCH
 	{"tpwr", (cmd_handler)cmd_target_power, "Supplies power to the target: (enable|disable)"},
 #endif
 #ifdef PLATFORM_HAS_TRACESWO
 	{"traceswo", (cmd_handler)cmd_traceswo, "Start trace capture" },
 #endif
+#ifdef PLATFORM_HAS_DEBUG
+	{"debug_bmp", (cmd_handler)cmd_debug_bmp, "Output BMP \"debug\" strings to the second vcom: (enable|disable)"},
+#endif
 	{NULL, NULL, NULL}
 };
 
+static bool connect_assert_srst;
+#ifdef PLATFORM_HAS_DEBUG
+bool debug_bmp;
+#endif
 
 int command_process(target *t, char *cmd)
 {
-	struct target_command_s *tc;
 	const struct command_s *c;
 	int argc = 0;
 	const char **argv;
@@ -91,24 +109,19 @@ int command_process(target *t, char *cmd)
 		/* Accept a partial match as GDB does.
 		 * So 'mon ver' will match 'monitor version'
 		 */
-		if(!strncmp(argv[0], c->cmd, strlen(argv[0])))
+		if ((argc == 0) || !strncmp(argv[0], c->cmd, strlen(argv[0])))
 			return !c->handler(t, argc, argv);
 	}
 
 	if (!t)
 		return -1;
 
-	for (tc = t->commands; tc; tc = tc->next)
-		for(c = tc->cmds; c->cmd; c++)
-			if(!strncmp(argv[0], c->cmd, strlen(argv[0])))
-				return !c->handler(t, argc, argv);
-
-	return -1;
+	return target_command(t, argc, argv);
 }
 
 bool cmd_version(void)
 {
-	gdb_out("Black Magic Probe (Firmware " FIRMWARE_VERSION ")\n");
+	gdb_outf("Black Magic Probe (Firmware " FIRMWARE_VERSION ") (Hardware Version %d)\n", platform_hwversion());
 	gdb_out("Copyright (C) 2015  Black Sphere Technologies Ltd.\n");
 	gdb_out("License GPLv3+: GNU GPL version 3 or later "
 		"<http://gnu.org/licenses/gpl.html>\n\n");
@@ -118,7 +131,6 @@ bool cmd_version(void)
 
 bool cmd_help(target *t)
 {
-	struct target_command_s *tc;
 	const struct command_s *c;
 
 	gdb_out("General commands:\n");
@@ -128,11 +140,7 @@ bool cmd_help(target *t)
 	if (!t)
 		return -1;
 
-	for (tc = t->commands; tc; tc = tc->next) {
-		gdb_outf("%s specific commands:\n", tc->specific_name);
-		for(c = tc->cmds; c->cmd; c++)
-			gdb_outf("\t%s -- %s\n", c->cmd, c->help);
-	}
+	target_command_help(t);
 
 	return true;
 }
@@ -151,6 +159,9 @@ static bool cmd_jtag_scan(target *t, int argc, char **argv)
 		irlens[argc-1] = 0;
 	}
 
+	if(connect_assert_srst)
+		platform_srst_set_val(true); /* will be deasserted after attach */
+
 	int devs = -1;
 	volatile struct exception e;
 	TRY_CATCH (e, EXCEPTION_ALL) {
@@ -165,27 +176,22 @@ static bool cmd_jtag_scan(target *t, int argc, char **argv)
 		break;
 	}
 
-	if(devs < 0) {
+	if(devs <= 0) {
+		platform_srst_set_val(false);
 		gdb_out("JTAG device scan failed!\n");
 		return false;
 	}
-	if(devs == 0) {
-		gdb_out("JTAG scan found no devices!\n");
-		return false;
-	}
-	gdb_outf("Device  IR Len  IDCODE      Description\n");
-	for(int i = 0; i < jtag_dev_count; i++)
-		gdb_outf("%d\t%d\t0x%08lX  %s\n", i,
-			 jtag_devs[i].ir_len, jtag_devs[i].idcode,
-			 jtag_devs[i].descr);
-	gdb_out("\n");
-	cmd_targets(NULL);
+	cmd_targets();
+	morse(NULL, false);
 	return true;
 }
 
 bool cmd_swdp_scan(void)
 {
 	gdb_outf("Target voltage: %s\n", platform_target_voltage());
+
+	if(connect_assert_srst)
+		platform_srst_set_val(true); /* will be deasserted after attach */
 
 	int devs = -1;
 	volatile struct exception e;
@@ -201,31 +207,32 @@ bool cmd_swdp_scan(void)
 		break;
 	}
 
-	if(devs < 0) {
+	if(devs <= 0) {
+		platform_srst_set_val(false);
 		gdb_out("SW-DP scan failed!\n");
 		return false;
 	}
 
-	cmd_targets(NULL);
+	cmd_targets();
+	morse(NULL, false);
 	return true;
 
 }
 
-bool cmd_targets(target *cur_target)
+static void display_target(int i, target *t, void *context)
 {
-	struct target_s *t;
-	int i;
+	(void)context;
+	gdb_outf("%2d   %c  %s\n", i, target_attached(t)?'*':' ', target_driver_name(t));
+}
 
-	if(!target_list) {
+bool cmd_targets(void)
+{
+	gdb_out("Available Targets:\n");
+	gdb_out("No. Att Driver\n");
+	if (!target_foreach(display_target, NULL)) {
 		gdb_out("No usable targets found.\n");
 		return false;
 	}
-
-	gdb_out("Available Targets:\n");
-	gdb_out("No. Att Driver\n");
-	for(t = target_list, i = 1; t; t = t->next, i++)
-		gdb_outf("%2d   %c  %s\n", i, t==cur_target?'*':' ',
-			 t->driver);
 
 	return true;
 }
@@ -245,6 +252,14 @@ static bool cmd_connect_srst(target *t, int argc, const char **argv)
 			 connect_assert_srst ? "enabled" : "disabled");
 	else
 		connect_assert_srst = !strcmp(argv[1], "enable");
+	return true;
+}
+
+static bool cmd_hard_srst(void)
+{
+	target_list_free();
+	platform_srst_set_val(true);
+	platform_srst_set_val(false);
 	return true;
 }
 
@@ -271,3 +286,15 @@ static bool cmd_traceswo(void)
 }
 #endif
 
+#ifdef PLATFORM_HAS_DEBUG
+static bool cmd_debug_bmp(target *t, int argc, const char **argv)
+{
+	(void)t;
+	if (argc > 1) {
+		debug_bmp = !strcmp(argv[1], "enable");
+	}
+	gdb_outf("Debug mode is %s\n",
+		 debug_bmp ? "enabled" : "disabled");
+	return true;
+}
+#endif

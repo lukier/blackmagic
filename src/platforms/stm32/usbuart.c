@@ -46,13 +46,6 @@ static void usbuart_run(void);
 
 void usbuart_init(void)
 {
-#if defined(BLACKMAGIC)
-	/* On mini hardware, UART and SWD share connector pins.
-	 * Don't enable UART if we're being debugged. */
-	if ((platform_hwversion() == 1) && (SCS_DEMCR & SCS_DEMCR_TRCENA))
-		return;
-#endif
-
 	rcc_periph_clock_enable(USBUSART_CLK);
 
 	UART_PIN_SETUP();
@@ -79,7 +72,7 @@ void usbuart_init(void)
 	timer_set_mode(USBUSART_TIM, TIM_CR1_CKD_CK_INT,
 			TIM_CR1_CMS_EDGE, TIM_CR1_DIR_UP);
 	timer_set_prescaler(USBUSART_TIM,
-			rcc_ppre2_frequency / USBUART_TIMER_FREQ_HZ * 2 - 1);
+			rcc_apb2_frequency / USBUART_TIMER_FREQ_HZ * 2 - 1);
 	timer_set_period(USBUSART_TIM,
 			USBUART_TIMER_FREQ_HZ / USBUART_RUN_FREQ_HZ - 1);
 
@@ -192,6 +185,22 @@ void usbuart_usb_out_cb(usbd_device *dev, uint8_t ep)
 	gpio_clear(LED_PORT_UART, LED_UART);
 }
 
+#ifdef USBUART_DEBUG
+int usbuart_debug_write(const char *buf, size_t len)
+{
+	for (size_t i = 0; i < len; i++) {
+		if (buf[i] == '\n') {
+			buf_rx[buf_rx_in++] = '\r';
+			buf_rx_in %= FIFO_SIZE;
+		}
+		buf_rx[buf_rx_in++] = buf[i];
+		buf_rx_in %= FIFO_SIZE;
+	}
+	/* enable deferred processing if we put data in the FIFO */
+	timer_enable_irq(USBUSART_TIM, TIM_DIER_UIE);
+	return len;
+}
+#endif
 
 void usbuart_usb_in_cb(usbd_device *dev, uint8_t ep)
 {
@@ -206,7 +215,10 @@ void usbuart_usb_in_cb(usbd_device *dev, uint8_t ep)
  */
 void USBUSART_ISR(void)
 {
+	uint32_t err = USART_SR(USBUSART);
 	char c = usart_recv(USBUSART);
+	if (err & (USART_SR_ORE | USART_SR_FE))
+		return;
 
 	/* Turn on LED */
 	gpio_set(LED_PORT_UART, LED_UART);
@@ -239,3 +251,56 @@ void USBUSART_TIM_ISR(void)
 	usbuart_run();
 }
 
+#ifdef ENABLE_DEBUG
+enum {
+	RDI_SYS_OPEN = 0x01,
+	RDI_SYS_WRITE = 0x05,
+	RDI_SYS_ISTTY = 0x09,
+};
+
+int rdi_write(int fn, const char *buf, size_t len)
+{
+	(void)fn;
+	if (debug_bmp)
+		return len - usbuart_debug_write(buf, len);
+
+	return 0;
+}
+
+struct ex_frame {
+	union {
+		int syscall;
+		int retval;
+	};
+	const int *params;
+	uint32_t r2, r3, r12, lr, pc;
+};
+
+void debug_monitor_handler_c(struct ex_frame *sp)
+{
+	/* Return to after breakpoint instruction */
+	sp->pc += 2;
+
+	switch (sp->syscall) {
+	case RDI_SYS_OPEN:
+		sp->retval = 1;
+		break;
+	case RDI_SYS_WRITE:
+		sp->retval = rdi_write(sp->params[0], (void*)sp->params[1], sp->params[2]);
+		break;
+	case RDI_SYS_ISTTY:
+		sp->retval = 1;
+		break;
+	default:
+		sp->retval = -1;
+	}
+
+}
+
+asm(".globl debug_monitor_handler\n"
+    ".thumb_func\n"
+    "debug_monitor_handler: \n"
+    "    mov r0, sp\n"
+    "    b debug_monitor_handler_c\n");
+
+#endif
